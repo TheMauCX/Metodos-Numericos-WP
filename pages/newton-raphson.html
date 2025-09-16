@@ -19,8 +19,8 @@
                 
                 <div class="form-group">
                     <label for="function">Función f(x):</label>
-                    <input type="text" id="function" value="x^2 - 5" placeholder="Ejemplo: x^2 - 4">
-                    <div class="input-help">Use notación estándar: x^2, sin(x), cos(x), tan(x), log(x), exp(x), sqrt(x)</div>
+                    <input type="text" id="function" value="x**2 - 5" placeholder="Ejemplo: x**2 - 4">
+                    <div class="input-help">Use notación JavaScript: x**2, Math.sin(x), Math.cos(x), Math.exp(x), etc.</div>
                 </div>
 
                 <div class="form-row">
@@ -51,35 +51,18 @@
 
     <script src="../assets/js/common.js"></script>
     <script>
-        function parseFunction(expr) {
-            // Preparar expresión para evaluación
-            let processedExpr = expr
-                .replace(/sin\(/g, 'Math.sin(')
-                .replace(/cos\(/g, 'Math.cos(')
-                .replace(/tan\(/g, 'Math.tan(')
-                .replace(/log\(/g, 'Math.log10(')
-                .replace(/ln\(/g, 'Math.log(')
-                .replace(/exp\(/g, 'Math.exp(')
-                .replace(/sqrt\(/g, 'Math.sqrt(')
-                .replace(/\^/g, '**');
-            
-            return function(x) {
-                try {
-                    let evaluatedExpr = processedExpr.replace(/\bx\b/g, `(${x})`);
-                    return eval(evaluatedExpr);
-                } catch (error) {
-                    throw new Error("Error al evaluar la función: " + error.message);
-                }
-            };
-        }
-
         function newtonRaphson(functionExpr, initialValue, tolerance, maxIterations) {
-            const f = parseFunction(functionExpr);
+            // Crear función usando MathUtils para evaluación consistente
+            const f = (x) => MathUtils.evaluateFunction(functionExpr, x);
             
             // Verificar que la función sea válida con el valor inicial
-            const testValue = f(initialValue);
-            if (!isFinite(testValue)) {
-                throw new Error("La función produce un valor no válido en el punto inicial.");
+            try {
+                const testValue = f(initialValue);
+                if (!isFinite(testValue)) {
+                    throw new Error("La función produce un valor no válido en el punto inicial.");
+                }
+            } catch (e) {
+                throw new Error("Error al evaluar la función: " + e.message);
             }
             
             let x = initialValue;
@@ -92,7 +75,7 @@
                 
                 // Verificar división por cero
                 if (Math.abs(f_prime_x) < 1e-10) {
-                    throw new Error(`La derivada es casi cero en x = ${x.toFixed(6)}. El método no puede continuar.`);
+                    throw new Error(`La derivada es casi cero en x = ${MathUtils.formatNumber(x)}. El método no puede continuar.`);
                 }
                 
                 const x_new = x - f_x / f_prime_x;
@@ -113,7 +96,7 @@
                     f_x: f_x,
                     f_prime_x: f_prime_x,
                     x_new: x_new,
-                    error: i > 0 ? error : null
+                    error: i > 0 ? error : 'N/A'
                 });
                 
                 // Verificar convergencia
@@ -155,10 +138,15 @@
             }
             
             try {
+                // Validar función primero
+                if (!Validators.isValidFunction(functionExpr)) {
+                    UI.showAlert("La función no es válida. Revise la sintaxis.", "error");
+                    return;
+                }
+
                 const { iterations, finalRoot, converged } = newtonRaphson(functionExpr, initialValue, tolerance, maxIterations);
                 
                 const lastIteration = iterations[iterations.length - 1];
-                const f = parseFunction(functionExpr);
                 
                 let html = `<div class="result-summary">
                     <h3>📊 Resumen del Cálculo</h3>
@@ -166,41 +154,61 @@
                     <p><strong>Método:</strong> Newton-Raphson</p>
                     <p><strong>Valor inicial:</strong> x₀ = ${MathUtils.formatNumber(initialValue, 6)}</p>
                     <p><strong>Raíz aproximada:</strong> x = ${MathUtils.formatNumber(finalRoot)}</p>
-                    <p><strong>Verificación:</strong> f(${MathUtils.formatNumber(finalRoot)}) = ${MathUtils.formatNumber(f(finalRoot))}</p>
+                    <p><strong>Verificación:</strong> f(${MathUtils.formatNumber(finalRoot)}) = ${MathUtils.formatNumber(MathUtils.evaluateFunction(functionExpr, finalRoot))}</p>
                     <p><strong>Estado:</strong> ${converged ? '✅ Convergencia alcanzada' : '⚠️ Máximo de iteraciones alcanzado'}</p>
                     <p><strong>Iteraciones realizadas:</strong> ${iterations.length}</p>
                 </div>`;
 
-                const headers = ['Iteración', 'xᵢ', 'f(xᵢ)', 'f\'(xᵢ)', 'xᵢ₊₁', 'Error (%)'];
-                const tableData = iterations.map(iter => ({
-                    iteration: iter.iteration,
-                    x: iter.x,
-                    f_x: iter.f_x,
-                    f_prime_x: iter.f_prime_x,
-                    x_new: iter.x_new,
-                    error: iter.error === null ? '-' : iter.error
-                }));
+                // Generar tabla manualmente para evitar problemas con TableGenerator
+                html += `<div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Iteración</th>
+                                <th>xᵢ</th>
+                                <th>f(xᵢ)</th>
+                                <th>f'(xᵢ)</th>
+                                <th>xᵢ₊₁</th>
+                                <th>Error (%)</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
 
-                html += TableGenerator.create(headers, tableData, {
-                    cellFormatter: (value) => {
-                        if (value === '-') return value;
-                        return typeof value === 'number' ? MathUtils.formatNumber(value) : value;
-                    }
+                iterations.forEach(iter => {
+                    html += `<tr>
+                        <td>${iter.iteration}</td>
+                        <td>${MathUtils.formatNumber(iter.x)}</td>
+                        <td>${MathUtils.formatNumber(iter.f_x)}</td>
+                        <td>${MathUtils.formatNumber(iter.f_prime_x)}</td>
+                        <td>${MathUtils.formatNumber(iter.x_new)}</td>
+                        <td>${iter.error === 'N/A' ? '-' : MathUtils.formatNumber(iter.error)}</td>
+                    </tr>`;
                 });
 
+                html += `</tbody></table></div>`;
+
+                document.getElementById("resultado-contenido").innerHTML = html;
+                document.getElementById("resultado").style.display = "block";
+                
                 if (converged) {
                     UI.showAlert(`¡Convergencia alcanzada! La raíz aproximada es ${MathUtils.formatNumber(finalRoot)} con un error del ${MathUtils.formatNumber(lastIteration.error || 0, 6)}%`, "success");
                 } else {
                     UI.showAlert("Se alcanzó el máximo de iteraciones sin convergencia. Intente con otro valor inicial o aumente las iteraciones.", "warning");
                 }
 
-                UI.showResults("resultado-contenido", html);
-                
             } catch (e) {
                 UI.showAlert(e.message, "error");
                 UI.hideResults("resultado");
             }
         }
+
+        // Configuración de validación en tiempo real
+        document.addEventListener('DOMContentLoaded', function() {
+            FormValidation.setupFunctionValidation('function');
+            FormValidation.setupNumericValidation('initialValue', { required: true });
+            FormValidation.setupNumericValidation('tolerance', { min: 0, positive: true, required: true });
+            FormValidation.setupNumericValidation('maxIterations', { min: 1, required: true });
+        });
     </script>
 </body>
 </html>

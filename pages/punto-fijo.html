@@ -24,9 +24,24 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="functionG">Función g(x) (despeje):</label>
-                    <input type="text" id="functionG" value="Math.exp(-x)" placeholder="Ejemplo: Math.exp(-x)">
-                    <div class="input-help">Función de iteración obtenida al despejar x de f(x)=0</div>
+                    <label for="despejeTipo">Tipo de despeje:</label>
+                    <select id="despejeTipo" onchange="actualizarDespeje()">
+                        <option value="auto">Despeje automático</option>
+                        <option value="izquierda">Despejar x a la izquierda</option>
+                        <option value="derecha">Despejar x a la derecha</option>
+                        <option value="custom">Función personalizada g(x)</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="customGContainer" style="display: none;">
+                    <label for="functionG">Función g(x) (personalizada):</label>
+                    <input type="text" id="functionG" placeholder="Ejemplo: Math.exp(-x)">
+                    <div class="input-help">Función de iteración personalizada</div>
+                </div>
+
+                <div id="despejeInfo" class="result-card">
+                    <h4>ℹ️ Información de despeje</h4>
+                    <p id="despejeTexto">Seleccione el tipo de despeje para generar g(x)</p>
                 </div>
 
                 <div class="form-row">
@@ -58,6 +73,101 @@
 
     <script src="../assets/js/common.js"></script>
     <script>
+        // Función para despejar x automáticamente
+        function despejarFuncion(funcionF, tipo) {
+            // Simplificar la función (eliminar espacios y convertir a minúsculas para análisis)
+            let f = funcionF.replace(/\s+/g, '').toLowerCase();
+            
+            // Intentar diferentes estrategias de despeje
+            if (tipo === 'auto' || tipo === 'izquierda') {
+                // Estrategia 1: Buscar patrones comunes donde x está a la izquierda
+                if (f.includes('x=') || f.includes('x=')) {
+                    return f.split('=')[1].trim();
+                }
+                
+                // Estrategia 2: Si la función es de la forma f(x) = x - g(x)
+                if (f.includes('x-') || f.includes('x-')) {
+                    const partes = f.split('-');
+                    if (partes[0] === 'x') {
+                        return partes[1];
+                    }
+                }
+                
+                // Estrategia 3: Si la función es de la forma f(x) = g(x) - x
+                if (f.includes('-x')) {
+                    const partes = f.split('-x');
+                    if (partes.length === 2) {
+                        return partes[0];
+                    }
+                }
+                
+                // Estrategia 4: Intentar aislar x algebraicamente para funciones simples
+                if (f.includes('x+')) {
+                    const partes = f.split('+');
+                    if (partes[0] === 'x') {
+                        return `(${f.replace('x+', '')}) * -1`;
+                    }
+                }
+            }
+            
+            if (tipo === 'auto' || tipo === 'derecha') {
+                // Estrategia 5: Para ecuaciones cuadráticas simples x² = a
+                if (f.includes('x^2') || f.includes('x**2')) {
+                    return `sqrt(${f.replace('x^2', '').replace('x**2', '')})`;
+                }
+                
+                // Estrategia 6: Para funciones exponenciales
+                if (f.includes('exp(x)') || f.includes('math.exp(x)')) {
+                    return `log(${f.replace('exp(x)', '').replace('math.exp(x)', '')})`;
+                }
+                
+                // Estrategia 7: Para funciones logarítmicas
+                if (f.includes('log(x)') || f.includes('math.log(x)')) {
+                    return `exp(${f.replace('log(x)', '').replace('math.log(x)', '')})`;
+                }
+            }
+            
+            // Si no se puede despejar automáticamente, sugerir una forma común
+            return "No se pudo despejar automáticamente. Use una función personalizada.";
+        }
+
+        function actualizarDespeje() {
+            const tipoDespeje = document.getElementById("despejeTipo").value;
+            const funcionF = document.getElementById("functionF").value.trim();
+            const customGContainer = document.getElementById("customGContainer");
+            const despejeTexto = document.getElementById("despejeTexto");
+            
+            if (tipoDespeje === "custom") {
+                customGContainer.style.display = "block";
+                despejeTexto.innerHTML = "Ingrese manualmente la función g(x) despejada.";
+            } else {
+                customGContainer.style.display = "none";
+                
+                if (funcionF) {
+                    try {
+                        const gx = despejarFuncion(funcionF, tipoDespeje);
+                        despejeTexto.innerHTML = `<strong>Función g(x) generada:</strong> ${gx}<br>
+                        <small>Nota: Verifique que esta función es correcta para su problema.</small>`;
+                    } catch (e) {
+                        despejeTexto.innerHTML = "Error al intentar despejar la función. Use despeje personalizado.";
+                    }
+                } else {
+                    despejeTexto.innerHTML = "Ingrese una función f(x) primero para generar g(x).";
+                }
+            }
+        }
+
+        function obtenerFuncionG() {
+            const tipoDespeje = document.getElementById("despejeTipo").value;
+            
+            if (tipoDespeje === "custom") {
+                return document.getElementById("functionG").value.trim();
+            } else {
+                const funcionF = document.getElementById("functionF").value.trim();
+                return despejarFuncion(funcionF, tipoDespeje);
+            }
+        }
+
         function puntoFijo(funcionF, funcionG, x0, tolerancia, maxIteraciones) {
             let resultados = [];
             let x = x0;
@@ -92,14 +202,27 @@
 
         function calcular() {
             const funcionF = document.getElementById("functionF").value.trim();
-            const funcionG = document.getElementById("functionG").value.trim();
+            let funcionG;
+            
+            try {
+                funcionG = obtenerFuncionG();
+            } catch (e) {
+                UI.showAlert("Error al obtener la función g(x): " + e.message, "error");
+                return;
+            }
+            
             const x0 = parseFloat(document.getElementById("initialValue").value);
             const tolerancia = parseFloat(document.getElementById("tolerance").value);
             const maxIteraciones = parseInt(document.getElementById("maxIterations").value);
 
             // Validaciones
-            if (!funcionF || !funcionG) {
-                UI.showAlert("Por favor, ingrese ambas funciones (f(x) y g(x)).", "error");
+            if (!funcionF) {
+                UI.showAlert("Por favor, ingrese una función f(x).", "error");
+                return;
+            }
+
+            if (!funcionG || funcionG.includes("No se pudo despejar")) {
+                UI.showAlert("Por favor, ingrese una función g(x) válida o use despeje personalizado.", "error");
                 return;
             }
 
@@ -137,23 +260,35 @@
                     <p><strong>Iteraciones realizadas:</strong> ${resultados.length}</p>
                 </div>`;
 
-                const headers = ['Iteración', 'xᵢ', 'xᵢ₊₁ = g(xᵢ)', 'f(xᵢ₊₁)', 'Error (%)'];
-                const tableData = resultados.map(r => ({
-                    iteracion: r.iteracion,
-                    x: r.x,
-                    xNuevo: r.xNuevo,
-                    fx: r.fx,
-                    error: r.error
-                }));
+                // Generar tabla manualmente
+                html += `<div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Iteración</th>
+                                <th>xᵢ</th>
+                                <th>xᵢ₊₁ = g(xᵢ)</th>
+                                <th>f(xᵢ₊₁)</th>
+                                <th>Error (%)</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
 
-                html += TableGenerator.create(headers, tableData, {
-                    cellFormatter: (value) => {
-                        if (value === 999) return '-';
-                        return typeof value === 'number' ? MathUtils.formatNumber(value) : value;
-                    }
+                resultados.forEach(r => {
+                    html += `<tr>
+                        <td>${r.iteracion}</td>
+                        <td>${MathUtils.formatNumber(r.x)}</td>
+                        <td>${MathUtils.formatNumber(r.xNuevo)}</td>
+                        <td>${MathUtils.formatNumber(r.fx)}</td>
+                        <td>${r.error === 999 ? '-' : MathUtils.formatNumber(r.error)}</td>
+                    </tr>`;
                 });
 
-                UI.showResults("resultado-contenido", html);
+                html += `</tbody></table></div>`;
+
+                document.getElementById("resultado-contenido").innerHTML = html;
+                document.getElementById("resultado").style.display = "block";
+                
                 UI.showAlert("Cálculo completado exitosamente.", "success");
 
             } catch (e) {
@@ -169,6 +304,9 @@
             FormValidation.setupNumericValidation('initialValue', { required: true });
             FormValidation.setupNumericValidation('tolerance', { min: 0, positive: true, required: true });
             FormValidation.setupNumericValidation('maxIterations', { min: 1, required: true });
+            
+            // Actualizar despeje cuando cambia la función f(x)
+            document.getElementById('functionF').addEventListener('input', actualizarDespeje);
         });
     </script>
 </body>

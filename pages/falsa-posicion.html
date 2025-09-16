@@ -19,7 +19,7 @@
                 
                 <div class="form-group">
                     <label for="funcion">Función f(x):</label>
-                    <input type="text" id="funcion" value="2*x**2+x-Math.sin(x)-4" placeholder="Ejemplo: x**2 - 4">
+                    <input type="text" id="funcion" value="Math.exp(-2 * x) + Math.pow(x, 3) - Math.log(3 * x + 2) - 12" placeholder="Ejemplo: x**2 - 4">
                     <div class="input-help">Use notación JavaScript: x**2, Math.sin(x), Math.cos(x), Math.exp(x), etc.</div>
                 </div>
 
@@ -146,6 +146,12 @@
             }
 
             try {
+                // Validar función
+                if (!Validators.isValidFunction(funcion)) {
+                    UI.showAlert("La función no es válida. Revise la sintaxis.", "error");
+                    return;
+                }
+
                 const { resultados, raiz, intervaloInicial } = falsaPosicion(funcion, N, error_F, xaManual, xbManual);
 
                 let html = `<div class="result-summary">
@@ -158,27 +164,43 @@
                     <p><strong>Iteraciones realizadas:</strong> ${resultados.length}</p>
                 </div>`;
 
-                const headers = ['Iteración', 'xa', 'xb', 'f(xa)', 'f(xb)', 'xk', 'f(xk)', 'Verificación', 'Error (%)'];
-                const tableData = resultados.map(r => ({
-                    iter: r.iter,
-                    xa: r.xa,
-                    xb: r.xb,
-                    fxa: r.fxa,
-                    fxb: r.fxb,
-                    xk: r.xk,
-                    fxk: r.fxk,
-                    vef: r.vef,
-                    error: r.error === 999 ? '-' : r.error
-                }));
+                // SOLUCIÓN: Generar la tabla manualmente para evitar problemas con TableGenerator
+                html += `<div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Iteración</th>
+                                <th>xa</th>
+                                <th>xb</th>
+                                <th>f(xa)</th>
+                                <th>f(xb)</th>
+                                <th>xk</th>
+                                <th>f(xk)</th>
+                                <th>Verificación</th>
+                                <th>Error (%)</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
 
-                html += TableGenerator.create(headers, tableData, {
-                    cellFormatter: (value) => {
-                        if (value === '-') return value;
-                        return typeof value === 'number' ? MathUtils.formatNumber(value) : value;
-                    }
+                resultados.forEach(r => {
+                    html += `<tr>
+                        <td>${r.iter}</td>
+                        <td>${MathUtils.formatNumber(r.xa)}</td>
+                        <td>${MathUtils.formatNumber(r.xb)}</td>
+                        <td>${MathUtils.formatNumber(r.fxa)}</td>
+                        <td>${MathUtils.formatNumber(r.fxb)}</td>
+                        <td>${MathUtils.formatNumber(r.xk)}</td>
+                        <td>${MathUtils.formatNumber(r.fxk)}</td>
+                        <td>${MathUtils.formatNumber(r.vef)}</td>
+                        <td>${r.error === 999 ? '-' : MathUtils.formatNumber(r.error)}</td>
+                    </tr>`;
                 });
 
-                UI.showResults("resultado-contenido", html);
+                html += `</tbody></table></div>`;
+
+                document.getElementById("resultado-contenido").innerHTML = html;
+                document.getElementById("resultado").style.display = "block";
+                
                 UI.showAlert("Cálculo completado exitosamente.", "success");
 
             } catch (e) {
@@ -186,6 +208,17 @@
                 UI.hideResults("resultado");
             }
         }
+
+        // Configuración de validación en tiempo real
+        document.addEventListener('DOMContentLoaded', function() {
+            FormValidation.setupFunctionValidation('funcion');
+            FormValidation.setupNumericValidation('N', { min: 1, required: true });
+            FormValidation.setupNumericValidation('error_F', { min: 0, positive: true, required: true });
+            
+            // También configurar validación para xa y xb si se desean
+            FormValidation.setupNumericValidation('xa');
+            FormValidation.setupNumericValidation('xb');
+        });
     </script>
 </body>
 </html>

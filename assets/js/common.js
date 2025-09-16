@@ -96,20 +96,12 @@ const UI = {
 const MathUtils = {
     evaluateFunction: (funcStr, x) => {
         try {
-            // Preparar la función con reemplazos seguros
-            let safeFuncStr = funcStr
-                .replace(/\^/g, '**')
-                .replace(/sin\(/g, 'Math.sin(')
-                .replace(/cos\(/g, 'Math.cos(')
-                .replace(/tan\(/g, 'Math.tan(')
-                .replace(/log\(/g, 'Math.log10(')
-                .replace(/ln\(/g, 'Math.log(')
-                .replace(/exp\(/g, 'Math.exp(')
-                .replace(/sqrt\(/g, 'Math.sqrt(')
-                .replace(/abs\(/g, 'Math.abs(')
-                .replace(/pow\(/g, 'Math.pow(');
-
-            const func = new Function('x', `return ${safeFuncStr};`);
+            // SOLUCIÓN: Usar with(Math) para acceso completo a funciones matemáticas
+            const func = new Function('x', `
+                with(Math) {
+                    return ${funcStr};
+                }
+            `);
             const result = func(x);
             
             if (!isFinite(result)) {

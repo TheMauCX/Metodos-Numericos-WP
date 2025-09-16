@@ -19,7 +19,7 @@
                 
                 <div class="form-group">
                     <label for="funcion">Función f(x):</label>
-                    <input type="text" id="funcion" value="x*x - 4" placeholder="Ejemplo: x**2 - 4">
+                    <input type="text" id="funcion" value="x**2 - 4" placeholder="Ejemplo: x**2 - 4">
                     <div class="input-help">Use notación JavaScript: x**2, Math.sin(x), Math.cos(x), Math.exp(x), etc.</div>
                 </div>
 
@@ -150,26 +150,41 @@
                     <p><strong>Iteraciones realizadas:</strong> ${resultados.length}</p>
                 </div>`;
 
-                const headers = ['Iteración', 'xᵢ₋₁', 'xᵢ', 'xᵢ₊₁', 'f(xᵢ₋₁)', 'f(xᵢ)', 'f(xᵢ₊₁)', 'Error (%)'];
-                const tableData = resultados.map(r => ({
-                    iteracion: r.iteracion,
-                    xPrev: r.xPrev,
-                    xCurr: r.xCurr,
-                    xNext: r.xNext,
-                    fPrev: r.fPrev,
-                    fCurr: r.fCurr,
-                    fNext: r.fNext,
-                    error: r.error
-                }));
+                // Generar tabla manualmente
+                html += `<div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Iteración</th>
+                                <th>xᵢ₋₁</th>
+                                <th>xᵢ</th>
+                                <th>xᵢ₊₁</th>
+                                <th>f(xᵢ₋₁)</th>
+                                <th>f(xᵢ)</th>
+                                <th>f(xᵢ₊₁)</th>
+                                <th>Error (%)</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
 
-                html += TableGenerator.create(headers, tableData, {
-                    cellFormatter: (value) => {
-                        if (value === 999) return '-';
-                        return typeof value === 'number' ? MathUtils.formatNumber(value) : value;
-                    }
+                resultados.forEach(r => {
+                    html += `<tr>
+                        <td>${r.iteracion}</td>
+                        <td>${MathUtils.formatNumber(r.xPrev)}</td>
+                        <td>${MathUtils.formatNumber(r.xCurr)}</td>
+                        <td>${MathUtils.formatNumber(r.xNext)}</td>
+                        <td>${MathUtils.formatNumber(r.fPrev)}</td>
+                        <td>${MathUtils.formatNumber(r.fCurr)}</td>
+                        <td>${MathUtils.formatNumber(r.fNext)}</td>
+                        <td>${r.error === 999 ? '-' : MathUtils.formatNumber(r.error)}</td>
+                    </tr>`;
                 });
 
-                UI.showResults("resultado-contenido", html);
+                html += `</tbody></table></div>`;
+
+                document.getElementById("resultado-contenido").innerHTML = html;
+                document.getElementById("resultado").style.display = "block";
+                
                 UI.showAlert("Cálculo completado exitosamente.", "success");
 
             } catch (e) {
