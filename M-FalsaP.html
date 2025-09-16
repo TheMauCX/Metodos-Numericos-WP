@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Método de Falsa Posición</title>
+  <style>
+    body { font-family: Arial; margin: 30px; }
+    input { margin: 5px; padding: 5px; }
+    table { border-collapse: collapse; margin-top: 20px; }
+    td, th { border: 1px solid black; padding: 6px; text-align: center; }
+    th { background: #f0f0f0; }
+  </style>
+</head>
+<body>
+  <h2>Método de Falsa Posición</h2>
+  <label>Función en x:</label>
+  <input type="text" id="funcion" value="2*x**2+x-Math.sin(x)-4">
+  <br>
+  <label>Número de iteraciones:</label>
+  <input type="number" id="N" value="100">
+  <br>
+  <label>Error deseado (%):</label>
+  <input type="number" id="error_F" step="0.0001" value="0.01">
+  <br>
+  <label>Xa (opcional):</label>
+  <input type="number" id="xa" placeholder="">
+  <br>
+  <label>Xa (opcional):</label>
+  <input type="number" id="xb" placeholder="">
+  <br>
+  <button onclick="calcular()">Calcular</button>
+
+  <div id="resultado"></div>
+
+<script>
+function evaluar(funcion, x) {
+  return Function("x", "return " + funcion)(x);
+}
+
+function falsaPosicion(funcion, N, error_F, xaManual, xbManual) {
+  let xa, xb;
+  
+  // Si el usuario dio xa y xb válidos, se usan
+  if (!isNaN(xaManual) && !isNaN(xbManual)) {
+    xa = xaManual;
+    xb = xbManual;
+    if (xa > xb) [xa, xb] = [xb, xa];
+    if (evaluar(funcion, xa) * evaluar(funcion, xb) > 0) {
+      throw new Error("El intervalo dado no encierra raíz (f(xa)*f(xb) > 0).");
+    }
+  } else {
+    // Si no, se busca aleatoriamente como antes
+    while (true) {
+      xa = Math.floor(Math.random() * 2001) - 1000;
+      xb = Math.floor(Math.random() * 2001) - 1000;
+      if (xa > xb) [xa, xb] = [xb, xa];
+      if (evaluar(funcion, xa) * evaluar(funcion, xb) < 0) break;
+    }
+  }
+
+  let resultados = [];
+  let xk2 = 0.0;
+  let raiz = null;
+  let xk= 0;
+
+  for (let i = 0; i < N; i++) {
+    let fxa = evaluar(funcion, xa);
+    let fxb = evaluar(funcion, xb);
+
+    xk = (xa*fxb - xb*fxa) / (fxb - fxa);
+    let fxk = evaluar(funcion, xk);
+    let vef = fxa * fxk;
+
+    let error = (i === 0) ? 999 : Math.abs((xk - xk2) / xk) * 100;
+
+    resultados.push({
+      iter: i + 1,
+      xa, xb, fxa, fxb, xk, fxk, vef, error
+    });
+
+    if (error < error_F) {
+      raiz = xk;
+      break;
+    }
+
+    if (vef < 0) {
+      xb = xk;
+    } else if (vef > 0) {
+      xa = xk;
+    } else {
+      raiz = xk;
+      break;
+    }
+
+    xk2 = xk;
+    raiz = xk;
+  }
+
+  return { resultados, raiz };
+}
+
+function calcular() {
+  let funcion = document.getElementById("funcion").value;
+  let N = parseInt(document.getElementById("N").value);
+  let error_F = parseFloat(document.getElementById("error_F").value);
+
+  let xaManual = parseFloat(document.getElementById("xa").value);
+  let xbManual = parseFloat(document.getElementById("xb").value);
+
+  try {
+    let { resultados, raiz } = falsaPosicion(funcion, N, error_F, xaManual, xbManual);
+
+    let html = "<h3>Resultados</h3>";
+    html += "<table><tr><th>Iteración</th><th>Xa</th><th> Xb</th><th>f(Xa)</th><th>f(Xb)</th><th>Xk</th><th>f(Xk)</th><th>Verificación</th><th>Error (%)</th></tr>";
+    resultados.forEach(r => {
+      html += `<tr>
+        <td>${r.iter}</td>
+        <td>${r.xa.toFixed(9)}</td>
+        <td>${r.xb.toFixed(9)}</td>
+        <td>${r.fxa.toFixed(9)}</td>
+        <td>${r.fxb.toFixed(9)}</td>
+        <td>${r.xk.toFixed(9)}</td>
+        <td>${r.fxk.toFixed(9)}</td>
+        <td>${r.vef.toFixed(9)}</td>
+        <td>${r.error.toFixed(9)}</td>
+      </tr>`;
+    });
+    html += "</table>";
+    html += `<h3>Raíz aproximada: ${raiz.toFixed(9)}</h3>`;
+
+    document.getElementById("resultado").innerHTML = html;
+  } catch (e) {
+    document.getElementById("resultado").innerHTML = `<p style="color:red;">${e.message}</p>`;
+  }
+}
+</script>
+</body>
+</html>

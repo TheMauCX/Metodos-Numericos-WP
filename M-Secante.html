@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Método de la Secante</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .input-group {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+        .input-group label {
+            width: 180px;
+            font-weight: bold;
+        }
+        .input-group input, .input-group select {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            display: block;
+            margin: 20px auto;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+        th {
+            background-color: #f2f2f2;
+            position: sticky;
+            top: 0;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e9f7ef;
+            border-left: 5px solid #4CAF50;
+            display: none;
+        }
+        .error {
+            color: red;
+            margin-top: 5px;
+            display: none;
+        }
+        @media (max-width: 768px) {
+            .input-group {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .input-group label {
+                width: 100%;
+                margin-bottom: 5px;
+            }
+        }
+        .back-button-container {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+        }
+        .back-button-container .back-button {
+            padding: 8px 15px;
+            font-size: 14px;
+        }
+        .back-button {
+            display: inline-block;
+            padding: 10px 20px;
+            font-size: 16px;
+            color: white;
+            background-color: #007bff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+            transition: background-color 0.3s;
+        }
+        .back-button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+
+        <div class="back-button-container">
+            <a href="I.html" class="back-button">Volver</a>
+        </div>
+
+        <h1>Método de la Secante</h1>
+        
+        <div class="input-group">
+            <label for="function">Función f(x):</label>
+            <input type="text" id="function" placeholder="Ejemplo: x*x - 4" value="x*x - 4">
+        </div>
+        
+        <div class="input-group">
+            <label for="x0">Valor inicial x₀:</label>
+            <input type="number" id="x0" step="any" value="6">
+        </div>
+        
+        <div class="input-group">
+            <label for="x1">Valor inicial x₁:</label>
+            <input type="number" id="x1" step="any" value="7">
+        </div>
+        
+        <div class="input-group">
+            <label for="tolerance">Tolerancia (error):</label>
+            <input type="number" id="tolerance" step="any" value="0.01" min="0">
+        </div>
+        
+        <div class="input-group">
+            <label for="maxIterations">Máximo de iteraciones:</label>
+            <input type="number" id="maxIterations" value="10" min="1">
+        </div>
+        
+        <button onclick="calculateSecante()">Calcular</button>
+        
+        <div id="errorMsg" class="error"></div>
+        
+        <div id="result" class="result"></div>
+        
+        <div id="tableContainer" style="overflow-x: auto;">
+            <table id="resultsTable">
+                <thead>
+                    <tr>
+                        <th>Iteración</th>
+                        <th>Paso 1<br>xᵢ₋₁</th>
+                        <th>Paso 1<br>xᵢ</th>
+                        <th>Paso 3<br>xᵢ₊₁</th>
+                        <th>Paso 2<br>f(xᵢ₋₁)</th>
+                        <th>Paso 2<br>f(xᵢ)</th>
+                        <th>Paso 4<br>f(xᵢ₊₁)</th>
+                        <th>Paso 5<br>εₐ (%)</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <!-- Los resultados se insertarán aquí -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        function calculateSecante() {
+            // Obtener valores de entrada
+            const funcStr = document.getElementById('function').value;
+            const x0 = parseFloat(document.getElementById('x0').value);
+            const x1 = parseFloat(document.getElementById('x1').value);
+            const tolerance = parseFloat(document.getElementById('tolerance').value);
+            const maxIterations = parseInt(document.getElementById('maxIterations').value);
+            
+            // Validar entradas
+            if (isNaN(x0) || isNaN(x1) || isNaN(tolerance) || isNaN(maxIterations)) {
+                showError("Por favor, ingrese valores válidos en todos los campos.");
+                return;
+            }
+            
+            if (tolerance <= 0) {
+                showError("La tolerancia debe ser mayor que cero.");
+                return;
+            }
+            
+            if (maxIterations <= 0) {
+                showError("El número máximo de iteraciones debe ser mayor que cero.");
+                return;
+            }
+            
+            // Ocultar mensajes de error previos
+            hideError();
+            
+            try {
+                // Preparar la función para evaluación
+                const f = new Function('x', `return ${funcStr.replace(/Math\.([a-zA-Z]+)/g, 'Math.$1')};`);
+                
+                // Inicializar variables
+                let xPrev = x0;
+                let xCurr = x1;
+                let fPrev = f(xPrev);
+                let fCurr = f(xCurr);
+                let iterations = [];
+                
+                // Realizar iteraciones
+                for (let i = 0; i < maxIterations; i++) {
+                    // Verificar división por cero
+                    if (Math.abs(fCurr - fPrev) < 1e-10) {
+                        showError("División por cero o diferencia muy pequeña entre f(xᵢ) y f(xᵢ₋₁).");
+                        return;
+                    }
+                    
+                    // Calcular siguiente aproximación
+                    const xNext = xCurr - (fCurr * (xPrev - xCurr)) / (fPrev - fCurr);
+                    const fNext = f(xNext);
+                    
+                    // Calcular error aproximado
+                    const error = i === 0 ? null : Math.abs((xNext - xCurr) / xNext) * 100;
+                    
+                    // Guardar iteración
+                    iterations.push({
+                        iteration: i + 1,
+                        xPrev: xPrev,
+                        xCurr: xCurr,
+                        xNext: xNext,
+                        fPrev: fPrev,
+                        fCurr: fCurr,
+                        fNext: fNext,
+                        error: error
+                    });
+                    
+                    // Verificar convergencia
+                    if (error !== null && error < tolerance) {
+                        break;
+                    }
+                    
+                    // Preparar siguiente iteración
+                    xPrev = xCurr;
+                    xCurr = xNext;
+                    fPrev = fCurr;
+                    fCurr = fNext;
+                }
+                
+                // Mostrar resultados
+                displayResults(iterations);
+                
+            } catch (error) {
+                showError("Error en la función: " + error.message);
+            }
+        }
+        
+        function displayResults(iterations) {
+            const tableBody = document.getElementById('tableBody');
+            const resultDiv = document.getElementById('result');
+            
+            // Limpiar tabla previa
+            tableBody.innerHTML = '';
+            
+            // Llenar tabla con resultados
+            iterations.forEach(iter => {
+                const row = document.createElement('tr');
+                
+                row.innerHTML = `
+                    <td>${iter.iteration}</td>
+                    <td>${iter.xPrev.toFixed(9)}</td>
+                    <td>${iter.xCurr.toFixed(9)}</td>
+                    <td>${iter.xNext.toFixed(9)}</td>
+                    <td>${iter.fPrev.toFixed(9)}</td>
+                    <td>${iter.fCurr.toFixed(9)}</td>
+                    <td>${iter.fNext.toFixed(9)}</td>
+                    <td>${iter.error === null ? '' : iter.error.toFixed(9)}</td>
+                `;
+                
+                tableBody.appendChild(row);
+            });
+            
+            // Mostrar resultado final
+            const lastIter = iterations[iterations.length - 1];
+            resultDiv.innerHTML = `
+                <strong>Resultado:</strong> La raíz aproximada es x = ${lastIter.xNext.toFixed(9)} 
+                con un error de ${lastIter.error ? lastIter.error.toFixed(9) + '%' : 'N/A'}
+                después de ${iterations.length} iteraciones.
+            `;
+            resultDiv.style.display = 'block';
+        }
+        
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMsg');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            
+            // Ocultar resultados previos
+            document.getElementById('result').style.display = 'none';
+            document.getElementById('tableBody').innerHTML = '';
+        }
+        
+        function hideError() {
+            document.getElementById('errorMsg').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
