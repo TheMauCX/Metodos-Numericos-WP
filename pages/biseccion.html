@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Método de Bisección - Métodos Numéricos</title>
+    <link rel="stylesheet" href="../assets/css/styles.css">
+</head>
+<body>
+    <a href="../index.html" class="back-button">← Volver al Inicio</a>
+    
+    <div class="container">
+        <div class="page-container">
+            <h1 class="page-title">Método de Bisección</h1>
+            <p class="subtitle">Encuentra raíces de ecuaciones mediante la bisección de intervalos</p>
+
+            <div class="form-section">
+                <h2 class="section-title">Parámetros de Entrada</h2>
+                
+                <div class="form-group">
+                    <label for="funcion">Función f(x):</label>
+                    <input type="text" id="funcion" value="2*x**2+x-Math.sin(x)-4" placeholder="Ejemplo: x**2 - 4">
+                    <div class="input-help">Use notación JavaScript: x**2, Math.sin(x), Math.cos(x), Math.exp(x), etc.</div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="xa">Límite inferior (xa):</label>
+                        <input type="number" id="xa" placeholder="Opcional - se calculará automáticamente">
+                    </div>
+                    <div class="form-group">
+                        <label for="xb">Límite superior (xb):</label>
+                        <input type="number" id="xb" placeholder="Opcional - se calculará automáticamente">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="N">Número máximo de iteraciones:</label>
+                        <input type="number" id="N" value="100" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="error_F">Error deseado (%):</label>
+                        <input type="number" id="error_F" step="0.0001" value="0.01" min="0">
+                    </div>
+                </div>
+
+                <button class="btn btn-primary btn-block" onclick="calcular()">Calcular Raíz</button>
+            </div>
+
+            <div id="resultado" class="results-section" style="display: none;">
+                <h2 class="section-title">Resultados</h2>
+                <div id="resultado-contenido"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../assets/js/common.js"></script>
+    <script>
+        function evaluar(funcion, x) {
+            try {
+                return Function("x", "return " + funcion)(x);
+            } catch (e) {
+                throw new Error("Error al evaluar la función: " + e.message);
+            }
+        }
+
+        function biseccion(funcion, N, error_F, xaManual, xbManual) {
+            let xa, xb;
+            
+            if (!isNaN(xaManual) && !isNaN(xbManual)) {
+                xa = xaManual;
+                xb = xbManual;
+                if (xa > xb) [xa, xb] = [xb, xa];
+                if (evaluar(funcion, xa) * evaluar(funcion, xb) > 0) {
+                    throw new Error("El intervalo dado no encierra una raíz (f(xa)*f(xb) > 0).");
+                }
+            } else {
+                let attempts = 0;
+                while (attempts < 10000) {
+                    xa = Math.floor(Math.random() * 2001) - 1000;
+                    xb = Math.floor(Math.random() * 2001) - 1000;
+                    if (xa > xb) [xa, xb] = [xb, xa];
+                    try {
+                        if (evaluar(funcion, xa) * evaluar(funcion, xb) < 0) break;
+                    } catch (e) {
+                        // Continuar buscando si hay error en la evaluación
+                    }
+                    attempts++;
+                }
+                if (attempts >= 10000) {
+                    throw new Error("No se pudo encontrar un intervalo que encierre una raíz automáticamente. Por favor, especifique xa y xb manualmente.");
+                }
+            }
+
+            let resultados = [];
+            let xk2 = 0.0;
+            let raiz = null;
+            let xk = 0;
+
+            for (let i = 0; i < N; i++) {
+                let fxa = evaluar(funcion, xa);
+                let fxb = evaluar(funcion, xb);
+
+                xk = (xa + xb) / 2;
+                let fxk = evaluar(funcion, xk);
+                let vef = fxa * fxk;
+
+                let error = (i === 0) ? 999 : Math.abs((xk - xk2) / xk) * 100;
+
+                resultados.push({
+                    iter: i + 1,
+                    xa, xb, fxa, fxb, xk, fxk, vef, error
+                });
+
+                if (error < error_F && i > 0) {
+                    raiz = xk;
+                    break;
+                }
+
+                if (Math.abs(fxk) < 1e-10) {
+                    raiz = xk;
+                    break;
+                }
+
+                if (vef < 0) {
+                    xb = xk;
+                } else if (vef > 0) {
+                    xa = xk;
+                } else {
+                    raiz = xk;
+                    break;
+                }
+
+                xk2 = xk;
+                raiz = xk;
+            }
+
+            return { resultados, raiz, intervaloInicial: [xa, xb] };
+        }
+
+        function calcular() {
+            const funcion = document.getElementById("funcion").value.trim();
+            const N = parseInt(document.getElementById("N").value);
+            const error_F = parseFloat(document.getElementById("error_F").value);
+            const xaManual = parseFloat(document.getElementById("xa").value);
+            const xbManual = parseFloat(document.getElementById("xb").value);
+
+            if (!funcion) {
+                showAlert("Por favor, ingrese una función válida.", "error");
+                return;
+            }
+
+            if (isNaN(N) || N <= 0) {
+                showAlert("El número de iteraciones debe ser un entero positivo.", "error");
+                return;
+            }
+
+            if (isNaN(error_F) || error_F <= 0) {
+                showAlert("El error deseado debe ser un número positivo.", "error");
+                return;
+            }
+
+            try {
+                const { resultados, raiz, intervaloInicial } = biseccion(funcion, N, error_F, xaManual, xbManual);
+
+                let html = `<div class="result-summary">
+                    <h3>📊 Resumen del Cálculo</h3>
+                    <p><strong>Función:</strong> f(x) = ${funcion}</p>
+                    <p><strong>Intervalo inicial:</strong> [${intervaloInicial[0].toFixed(6)}, ${intervaloInicial[1].toFixed(6)}]</p>
+                    <p><strong>Raíz aproximada:</strong> x = ${raiz.toFixed(9)}</p>
+                    <p><strong>Verificación:</strong> f(${raiz.toFixed(9)}) = ${evaluar(funcion, raiz).toFixed(9)}</p>
+                    <p><strong>Iteraciones realizadas:</strong> ${resultados.length}</p>
+                </div>`;
+
+                html += `<div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Iteración</th>
+                                <th>xa</th>
+                                <th>xb</th>
+                                <th>f(xa)</th>
+                                <th>f(xb)</th>
+                                <th>xk</th>
+                                <th>f(xk)</th>
+                                <th>Verificación</th>
+                                <th>Error (%)</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+
+                resultados.forEach(r => {
+                    html += `<tr>
+                        <td>${r.iter}</td>
+                        <td>${r.xa.toFixed(9)}</td>
+                        <td>${r.xb.toFixed(9)}</td>
+                        <td>${r.fxa.toFixed(9)}</td>
+                        <td>${r.fxb.toFixed(9)}</td>
+                        <td>${r.xk.toFixed(9)}</td>
+                        <td>${r.fxk.toFixed(9)}</td>
+                        <td>${r.vef.toFixed(9)}</td>
+                        <td>${r.error === 999 ? '-' : r.error.toFixed(9)}</td>
+                    </tr>`;
+                });
+
+                html += `</tbody></table></div>`;
+
+                document.getElementById("resultado-contenido").innerHTML = html;
+                document.getElementById("resultado").style.display = "block";
+                
+                showAlert("Cálculo completado exitosamente.", "success");
+
+            } catch (e) {
+                showAlert(e.message, "error");
+                document.getElementById("resultado").style.display = "none";
+            }
+        }
+
+        function showAlert(message, type) {
+            // Remover alertas previas
+            const existingAlert = document.querySelector('.alert');
+            if (existingAlert) {
+                existingAlert.remove();
+            }
+
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+
+            const formSection = document.querySelector('.form-section');
+            formSection.appendChild(alert);
+
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (alert.parentNode) {
+                    alert.remove();
+                }
+            }, 5000);
+        }
+
+        // Validación en tiempo real
+        document.getElementById('funcion').addEventListener('input', function() {
+            const value = this.value.trim();
+            if (value) {
+                try {
+                    evaluar(value, 1);
+                    this.style.borderColor = 'var(--success-color)';
+                } catch (e) {
+                    this.style.borderColor = 'var(--accent-color)';
+                }
+            } else {
+                this.style.borderColor = 'var(--border-color)';
+            }
+        });
+    </script>
+</body>
+</html>

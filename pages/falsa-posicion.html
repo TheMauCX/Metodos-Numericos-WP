@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Método de Falsa Posición - Métodos Numéricos</title>
+    <link rel="stylesheet" href="../assets/css/styles.css">
+</head>
+<body>
+    <a href="../index.html" class="back-button">← Volver al Inicio</a>
+    
+    <div class="container">
+        <div class="page-container">
+            <h1 class="page-title">Método de Falsa Posición</h1>
+            <p class="subtitle">Localiza raíces mediante interpolación lineal entre puntos del intervalo</p>
+
+            <div class="form-section">
+                <h2 class="section-title">Parámetros de Entrada</h2>
+                
+                <div class="form-group">
+                    <label for="funcion">Función f(x):</label>
+                    <input type="text" id="funcion" value="2*x**2+x-Math.sin(x)-4" placeholder="Ejemplo: x**2 - 4">
+                    <div class="input-help">Use notación JavaScript: x**2, Math.sin(x), Math.cos(x), Math.exp(x), etc.</div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="xa">Límite inferior (xa):</label>
+                        <input type="number" id="xa" placeholder="Opcional - se calculará automáticamente">
+                    </div>
+                    <div class="form-group">
+                        <label for="xb">Límite superior (xb):</label>
+                        <input type="number" id="xb" placeholder="Opcional - se calculará automáticamente">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="N">Número máximo de iteraciones:</label>
+                        <input type="number" id="N" value="100" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="error_F">Error deseado (%):</label>
+                        <input type="number" id="error_F" step="0.0001" value="0.01" min="0">
+                    </div>
+                </div>
+
+                <button class="btn btn-primary btn-block" onclick="calcular()">Calcular Raíz</button>
+            </div>
+
+            <div id="resultado" class="results-section" style="display: none;">
+                <h2 class="section-title">Resultados</h2>
+                <div id="resultado-contenido"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../assets/js/common.js"></script>
+    <script>
+        function falsaPosicion(funcion, N, error_F, xaManual, xbManual) {
+            let xa, xb;
+            
+            if (!isNaN(xaManual) && !isNaN(xbManual)) {
+                xa = xaManual;
+                xb = xbManual;
+                if (xa > xb) [xa, xb] = [xb, xa];
+                
+                const fxa = MathUtils.evaluateFunction(funcion, xa);
+                const fxb = MathUtils.evaluateFunction(funcion, xb);
+                
+                if (fxa * fxb > 0) {
+                    throw new Error("El intervalo dado no encierra una raíz (f(xa)*f(xb) > 0).");
+                }
+            } else {
+                [xa, xb] = MathUtils.findInterval(funcion);
+            }
+
+            let resultados = [];
+            let xk2 = 0.0;
+            let raiz = null;
+            let xk = 0;
+
+            for (let i = 0; i < N; i++) {
+                let fxa = MathUtils.evaluateFunction(funcion, xa);
+                let fxb = MathUtils.evaluateFunction(funcion, xb);
+
+                // Fórmula de falsa posición
+                xk = (xa * fxb - xb * fxa) / (fxb - fxa);
+                let fxk = MathUtils.evaluateFunction(funcion, xk);
+                let vef = fxa * fxk;
+
+                let error = (i === 0) ? 999 : MathUtils.calculateError(xk, xk2);
+
+                resultados.push({
+                    iter: i + 1,
+                    xa, xb, fxa, fxb, xk, fxk, vef, error
+                });
+
+                if (error < error_F && i > 0) {
+                    raiz = xk;
+                    break;
+                }
+
+                if (Math.abs(fxk) < 1e-10) {
+                    raiz = xk;
+                    break;
+                }
+
+                if (vef < 0) {
+                    xb = xk;
+                } else if (vef > 0) {
+                    xa = xk;
+                } else {
+                    raiz = xk;
+                    break;
+                }
+
+                xk2 = xk;
+                raiz = xk;
+            }
+
+            return { resultados, raiz, intervaloInicial: [xa, xb] };
+        }
+
+        function calcular() {
+            const funcion = document.getElementById("funcion").value.trim();
+            const N = parseInt(document.getElementById("N").value);
+            const error_F = parseFloat(document.getElementById("error_F").value);
+            const xaManual = parseFloat(document.getElementById("xa").value);
+            const xbManual = parseFloat(document.getElementById("xb").value);
+
+            // Validaciones
+            if (!funcion) {
+                UI.showAlert("Por favor, ingrese una función válida.", "error");
+                return;
+            }
+
+            if (isNaN(N) || N <= 0) {
+                UI.showAlert("El número de iteraciones debe ser un entero positivo.", "error");
+                return;
+            }
+
+            if (isNaN(error_F) || error_F <= 0) {
+                UI.showAlert("El error deseado debe ser un número positivo.", "error");
+                return;
+            }
+
+            try {
+                const { resultados, raiz, intervaloInicial } = falsaPosicion(funcion, N, error_F, xaManual, xbManual);
+
+                let html = `<div class="result-summary">
+                    <h3>📊 Resumen del Cálculo</h3>
+                    <p><strong>Función:</strong> f(x) = ${funcion}</p>
+                    <p><strong>Método:</strong> Falsa Posición (Regula Falsi)</p>
+                    <p><strong>Intervalo inicial:</strong> [${MathUtils.formatNumber(intervaloInicial[0], 6)}, ${MathUtils.formatNumber(intervaloInicial[1], 6)}]</p>
+                    <p><strong>Raíz aproximada:</strong> x = ${MathUtils.formatNumber(raiz)}</p>
+                    <p><strong>Verificación:</strong> f(${MathUtils.formatNumber(raiz)}) = ${MathUtils.formatNumber(MathUtils.evaluateFunction(funcion, raiz))}</p>
+                    <p><strong>Iteraciones realizadas:</strong> ${resultados.length}</p>
+                </div>`;
+
+                const headers = ['Iteración', 'xa', 'xb', 'f(xa)', 'f(xb)', 'xk', 'f(xk)', 'Verificación', 'Error (%)'];
+                const tableData = resultados.map(r => ({
+                    iter: r.iter,
+                    xa: r.xa,
+                    xb: r.xb,
+                    fxa: r.fxa,
+                    fxb: r.fxb,
+                    xk: r.xk,
+                    fxk: r.fxk,
+                    vef: r.vef,
+                    error: r.error === 999 ? '-' : r.error
+                }));
+
+                html += TableGenerator.create(headers, tableData, {
+                    cellFormatter: (value) => {
+                        if (value === '-') return value;
+                        return typeof value === 'number' ? MathUtils.formatNumber(value) : value;
+                    }
+                });
+
+                UI.showResults("resultado-contenido", html);
+                UI.showAlert("Cálculo completado exitosamente.", "success");
+
+            } catch (e) {
+                UI.showAlert(e.message, "error");
+                UI.hideResults("resultado");
+            }
+        }
+    </script>
+</body>
+</html>

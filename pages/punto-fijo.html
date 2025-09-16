@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Método de Punto Fijo - Métodos Numéricos</title>
+    <link rel="stylesheet" href="../assets/css/styles.css">
+</head>
+<body>
+    <a href="../index.html" class="back-button">← Volver al Inicio</a>
+    
+    <div class="container">
+        <div class="page-container">
+            <h1 class="page-title">Método de Punto Fijo</h1>
+            <p class="subtitle">Encuentra puntos fijos de funciones iterativas</p>
+
+            <div class="form-section">
+                <h2 class="section-title">Parámetros de Entrada</h2>
+                
+                <div class="form-group">
+                    <label for="functionF">Función f(x):</label>
+                    <input type="text" id="functionF" value="x - Math.exp(-x)" placeholder="Ejemplo: x - Math.exp(-x)">
+                    <div class="input-help">Use notación JavaScript: x**2, Math.sin(x), Math.cos(x), Math.exp(x), etc.</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="functionG">Función g(x) (despeje):</label>
+                    <input type="text" id="functionG" value="Math.exp(-x)" placeholder="Ejemplo: Math.exp(-x)">
+                    <div class="input-help">Función de iteración obtenida al despejar x de f(x)=0</div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="initialValue">Valor inicial (x₀):</label>
+                        <input type="number" id="initialValue" step="any" value="0.5">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="tolerance">Error deseado (%):</label>
+                        <input type="number" id="tolerance" step="0.0001" value="0.5" min="0">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="maxIterations">Número máximo de iteraciones:</label>
+                        <input type="number" id="maxIterations" min="1" value="10">
+                    </div>
+                </div>
+
+                <button class="btn btn-primary btn-block" onclick="calcular()">Calcular Raíz</button>
+            </div>
+
+            <div id="resultado" class="results-section" style="display: none;">
+                <h2 class="section-title">Resultados</h2>
+                <div id="resultado-contenido"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../assets/js/common.js"></script>
+    <script>
+        function puntoFijo(funcionF, funcionG, x0, tolerancia, maxIteraciones) {
+            let resultados = [];
+            let x = x0;
+            let error = 999;
+            
+            for (let i = 0; i < maxIteraciones; i++) {
+                const xNuevo = MathUtils.evaluateFunction(funcionG, x);
+                
+                if (i > 0) {
+                    error = MathUtils.calculateError(xNuevo, x);
+                }
+                
+                const fx = MathUtils.evaluateFunction(funcionF, xNuevo);
+                
+                resultados.push({
+                    iteracion: i + 1,
+                    x: x,
+                    xNuevo: xNuevo,
+                    fx: fx,
+                    error: i === 0 ? 999 : error
+                });
+                
+                if (error < tolerancia && i > 0) {
+                    return { resultados, raiz: xNuevo };
+                }
+                
+                x = xNuevo;
+            }
+            
+            return { resultados, raiz: x };
+        }
+
+        function calcular() {
+            const funcionF = document.getElementById("functionF").value.trim();
+            const funcionG = document.getElementById("functionG").value.trim();
+            const x0 = parseFloat(document.getElementById("initialValue").value);
+            const tolerancia = parseFloat(document.getElementById("tolerance").value);
+            const maxIteraciones = parseInt(document.getElementById("maxIterations").value);
+
+            // Validaciones
+            if (!funcionF || !funcionG) {
+                UI.showAlert("Por favor, ingrese ambas funciones (f(x) y g(x)).", "error");
+                return;
+            }
+
+            if (isNaN(x0)) {
+                UI.showAlert("Por favor, ingrese un valor inicial válido.", "error");
+                return;
+            }
+
+            if (isNaN(tolerancia) || tolerancia <= 0) {
+                UI.showAlert("El error deseado debe ser un número positivo.", "error");
+                return;
+            }
+
+            if (isNaN(maxIteraciones) || maxIteraciones <= 0) {
+                UI.showAlert("El número de iteraciones debe ser un entero positivo.", "error");
+                return;
+            }
+
+            try {
+                // Validar funciones
+                if (!Validators.isValidFunction(funcionF) || !Validators.isValidFunction(funcionG)) {
+                    UI.showAlert("Una o ambas funciones no son válidas. Revise la sintaxis.", "error");
+                    return;
+                }
+
+                const { resultados, raiz } = puntoFijo(funcionF, funcionG, x0, tolerancia, maxIteraciones);
+
+                let html = `<div class="result-summary">
+                    <h3>📊 Resumen del Cálculo</h3>
+                    <p><strong>Función f(x):</strong> ${funcionF}</p>
+                    <p><strong>Función g(x):</strong> ${funcionG}</p>
+                    <p><strong>Valor inicial:</strong> x₀ = ${x0}</p>
+                    <p><strong>Raíz aproximada:</strong> x = ${MathUtils.formatNumber(raiz)}</p>
+                    <p><strong>Verificación:</strong> f(${MathUtils.formatNumber(raiz)}) = ${MathUtils.formatNumber(MathUtils.evaluateFunction(funcionF, raiz))}</p>
+                    <p><strong>Iteraciones realizadas:</strong> ${resultados.length}</p>
+                </div>`;
+
+                const headers = ['Iteración', 'xᵢ', 'xᵢ₊₁ = g(xᵢ)', 'f(xᵢ₊₁)', 'Error (%)'];
+                const tableData = resultados.map(r => ({
+                    iteracion: r.iteracion,
+                    x: r.x,
+                    xNuevo: r.xNuevo,
+                    fx: r.fx,
+                    error: r.error
+                }));
+
+                html += TableGenerator.create(headers, tableData, {
+                    cellFormatter: (value) => {
+                        if (value === 999) return '-';
+                        return typeof value === 'number' ? MathUtils.formatNumber(value) : value;
+                    }
+                });
+
+                UI.showResults("resultado-contenido", html);
+                UI.showAlert("Cálculo completado exitosamente.", "success");
+
+            } catch (e) {
+                UI.showAlert(e.message, "error");
+                UI.hideResults("resultado");
+            }
+        }
+
+        // Configuración de validación en tiempo real
+        document.addEventListener('DOMContentLoaded', function() {
+            FormValidation.setupFunctionValidation('functionF');
+            FormValidation.setupFunctionValidation('functionG');
+            FormValidation.setupNumericValidation('initialValue', { required: true });
+            FormValidation.setupNumericValidation('tolerance', { min: 0, positive: true, required: true });
+            FormValidation.setupNumericValidation('maxIterations', { min: 1, required: true });
+        });
+    </script>
+</body>
+</html>

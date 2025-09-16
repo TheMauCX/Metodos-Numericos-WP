@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Análisis de Errores - Métodos Numéricos</title>
+    <link rel="stylesheet" href="../assets/css/styles.css">
+</head>
+<body>
+    <a href="../index.html" class="back-button">← Volver al Inicio</a>
+    
+    <div class="container">
+        <div class="page-container">
+            <h1 class="page-title">Análisis de Errores</h1>
+            <p class="subtitle">Cálculo de errores y sistemas de punto flotante</p>
+
+            <!-- Sección de Cálculo de Errores -->
+            <div class="form-section">
+                <h2 class="section-title">Cálculo de Errores</h2>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="trueValue">Valor verdadero:</label>
+                        <input type="number" step="any" id="trueValue" placeholder="Ingrese el valor verdadero">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="approxValue">Valor aproximado:</label>
+                        <input type="number" step="any" id="approxValue" placeholder="Ingrese el valor aproximado">
+                    </div>
+                </div>
+
+                <button class="btn btn-primary btn-block" onclick="calculateErrors()">Calcular Errores</button>
+                
+                <div id="errorResults" class="results-section" style="display: none;">
+                    <h3 class="section-title">Resultados de Errores</h3>
+                    <div id="errorResultsContent"></div>
+                </div>
+            </div>
+
+            <!-- Sección de Sistema de Punto Flotante -->
+            <div class="form-section">
+                <h2 class="section-title">Sistema de Punto Flotante</h2>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="base">Base del sistema (β):</label>
+                        <input type="number" id="base" min="2" value="2" placeholder="Base (≥2)">
+                        <div class="input-help">Base numérica (debe ser ≥ 2)</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="digits">Número de dígitos de la mantisa (t):</label>
+                        <input type="number" id="digits" min="1" value="3" placeholder="Dígitos (≥1)">
+                        <div class="input-help">Cantidad de dígitos significativos</div>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="minExp">Menor exponente permitido (L):</label>
+                        <input type="number" id="minExp" value="-3" placeholder="Exponente mínimo">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="maxExp">Mayor exponente permitido (U):</label>
+                        <input type="number" id="maxExp" value="3" placeholder="Exponente máximo">
+                    </div>
+                </div>
+
+                <button class="btn btn-primary btn-block" onclick="analyzeFloatingPoint()">Analizar Sistema</button>
+                
+                <div id="floatingPointResults" class="results-section" style="display: none;">
+                    <h3 class="section-title">Resultados del Sistema</h3>
+                    <div id="floatingPointResultsContent"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../assets/js/common.js"></script>
+    <script>
+        function calculateErrors() {
+            const trueValue = parseFloat(document.getElementById('trueValue').value);
+            const approxValue = parseFloat(document.getElementById('approxValue').value);
+
+            // Validaciones
+            if (isNaN(trueValue) || isNaN(approxValue)) {
+                UI.showAlert("Por favor ingrese valores numéricos válidos.", "error");
+                UI.hideResults("errorResults");
+                return;
+            }
+
+            if (trueValue === 0) {
+                UI.showAlert("El valor verdadero no puede ser cero (causaría división por cero).", "error");
+                UI.hideResults("errorResults");
+                return;
+            }
+
+            try {
+                const absoluteError = Math.abs(trueValue - approxValue);
+                const relativeError = absoluteError / Math.abs(trueValue);
+                const percentageError = relativeError * 100;
+
+                const html = `
+                    <div class="result-summary">
+                        <h3>📊 Resultados del Cálculo de Errores</h3>
+                        <p><strong>Valor verdadero:</strong> ${MathUtils.formatNumber(trueValue)}</p>
+                        <p><strong>Valor aproximado:</strong> ${MathUtils.formatNumber(approxValue)}</p>
+                        <p><strong>Error absoluto:</strong> ${absoluteError.toExponential(8)}</p>
+                        <p><strong>Error relativo:</strong> ${relativeError.toExponential(8)}</p>
+                        <p><strong>Porcentaje de error relativo:</strong> ${percentageError.toExponential(8)}%</p>
+                    </div>
+                `;
+
+                document.getElementById("errorResultsContent").innerHTML = html;
+                document.getElementById("errorResults").style.display = "block";
+                
+                UI.showAlert("Cálculo de errores completado exitosamente.", "success");
+
+            } catch (e) {
+                UI.showAlert("Error en el cálculo: " + e.message, "error");
+                UI.hideResults("errorResults");
+            }
+        }
+
+        function analyzeFloatingPoint() {
+            const base = parseInt(document.getElementById('base').value);
+            const digits = parseInt(document.getElementById('digits').value);
+            const minExp = parseInt(document.getElementById('minExp').value);
+            const maxExp = parseInt(document.getElementById('maxExp').value);
+
+            // Validaciones
+            if (base < 2 || isNaN(base)) {
+                UI.showAlert("La base debe ser un número ≥ 2.", "error");
+                UI.hideResults("floatingPointResults");
+                return;
+            }
+
+            if (digits < 1 || isNaN(digits)) {
+                UI.showAlert("El número de dígitos debe ser ≥ 1.", "error");
+                UI.hideResults("floatingPointResults");
+                return;
+            }
+
+            if (isNaN(minExp) || isNaN(maxExp) || minExp >= maxExp) {
+                UI.showAlert("Los exponentes deben ser válidos y L debe ser menor que U.", "error");
+                UI.hideResults("floatingPointResults");
+                return;
+            }
+
+            try {
+                // Calcular el número más grande 
+                const largestNumber = (1 - Math.pow(base, -digits)) * Math.pow(base, maxExp);
+
+                // Calcular el número más pequeño normalizado 
+                const smallestNormalized = Math.pow(base, minExp - 1);
+
+                // Calcular el número más pequeño en general (considerando subnormales) 
+                const smallestDenormalized = Math.pow(base, minExp - digits);
+
+                // Calcular la cantidad de elementos en el sistema 
+                const positiveNumbers = (base - 1) * Math.pow(base, digits - 1) * (maxExp - minExp + 1);
+                const totalNumbers = 2 * positiveNumbers + 1; // +1 para el cero 
+
+                const html = `
+                    <div class="result-summary">
+                        <h3>📊 Resultados del Sistema de Punto Flotante</h3>
+                        <p><strong>Parámetros:</strong> β = ${base}, t = ${digits}, L = ${minExp}, U = ${maxExp}</p>
+                        <p><strong>Forma normalizada:</strong> ±0.d₁d₂...dₜ × βᵉ donde d₁≠0 y L ≤ e ≤ U</p>
+                        <p><strong>Número de elementos en el sistema:</strong> ${totalNumbers} (incluyendo ±0)</p>
+                        <p><strong>Número más grande representable:</strong> ${largestNumber.toExponential(digits)}</p>
+                        <p><strong>Número más pequeño normalizado:</strong> ${smallestNormalized.toExponential(digits)}</p>
+                        <p><strong>Número más pequeño en general:</strong> ${smallestDenormalized.toExponential(digits)}</p>
+                    </div>
+                    
+                    <div class="result-card">
+                        <h4>⚡ Consideraciones importantes:</h4>
+                        <p><strong>OVERFLOW:</strong> Cualquier número > ${largestNumber.toExponential(digits)} se considera +∞</p>
+                        <p><strong>UNDERFLOW:</strong> Números entre ±0 y ±${smallestNormalized.toExponential(digits)} pueden perder precisión</p>
+                        <p>Números con valor absoluto < ${smallestDenormalized.toExponential(digits)} se consideran 0</p>
+                    </div>
+                `;
+
+                document.getElementById("floatingPointResultsContent").innerHTML = html;
+                document.getElementById("floatingPointResults").style.display = "block";
+                
+                UI.showAlert("Análisis del sistema de punto flotante completado.", "success");
+
+            } catch (e) {
+                UI.showAlert("Error en el análisis: " + e.message, "error");
+                UI.hideResults("floatingPointResults");
+            }
+        }
+
+        // Configuración de validación en tiempo real
+        document.addEventListener('DOMContentLoaded', function() {
+            FormValidation.setupNumericValidation('trueValue', { required: true });
+            FormValidation.setupNumericValidation('approxValue', { required: true });
+            FormValidation.setupNumericValidation('base', { min: 2, required: true });
+            FormValidation.setupNumericValidation('digits', { min: 1, required: true });
+            FormValidation.setupNumericValidation('minExp', { required: true });
+            FormValidation.setupNumericValidation('maxExp', { required: true });
+        });
+    </script>
+</body>
+</html>

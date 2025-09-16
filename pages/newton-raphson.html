@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Método Newton-Raphson - Métodos Numéricos</title>
+    <link rel="stylesheet" href="../assets/css/styles.css">
+</head>
+<body>
+    <a href="../index.html" class="back-button">← Volver al Inicio</a>
+    
+    <div class="container">
+        <div class="page-container">
+            <h1 class="page-title">Método Newton-Raphson</h1>
+            <p class="subtitle">Método de convergencia rápida utilizando la derivada de la función</p>
+
+            <div class="form-section">
+                <h2 class="section-title">Parámetros de Entrada</h2>
+                
+                <div class="form-group">
+                    <label for="function">Función f(x):</label>
+                    <input type="text" id="function" value="x^2 - 5" placeholder="Ejemplo: x^2 - 4">
+                    <div class="input-help">Use notación estándar: x^2, sin(x), cos(x), tan(x), log(x), exp(x), sqrt(x)</div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="initialValue">Valor inicial (x₀):</label>
+                        <input type="number" id="initialValue" step="any" value="5" placeholder="Punto de partida">
+                    </div>
+                    <div class="form-group">
+                        <label for="tolerance">Error deseado (%):</label>
+                        <input type="number" id="tolerance" step="any" value="0.01" min="0" placeholder="Tolerancia">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="maxIterations">Número máximo de iteraciones:</label>
+                    <input type="number" id="maxIterations" value="10" min="1" placeholder="Límite de iteraciones">
+                </div>
+
+                <button class="btn btn-primary btn-block" onclick="calculate()">Calcular Raíz</button>
+            </div>
+
+            <div id="resultado" class="results-section" style="display: none;">
+                <h2 class="section-title">Resultados</h2>
+                <div id="resultado-contenido"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../assets/js/common.js"></script>
+    <script>
+        function parseFunction(expr) {
+            // Preparar expresión para evaluación
+            let processedExpr = expr
+                .replace(/sin\(/g, 'Math.sin(')
+                .replace(/cos\(/g, 'Math.cos(')
+                .replace(/tan\(/g, 'Math.tan(')
+                .replace(/log\(/g, 'Math.log10(')
+                .replace(/ln\(/g, 'Math.log(')
+                .replace(/exp\(/g, 'Math.exp(')
+                .replace(/sqrt\(/g, 'Math.sqrt(')
+                .replace(/\^/g, '**');
+            
+            return function(x) {
+                try {
+                    let evaluatedExpr = processedExpr.replace(/\bx\b/g, `(${x})`);
+                    return eval(evaluatedExpr);
+                } catch (error) {
+                    throw new Error("Error al evaluar la función: " + error.message);
+                }
+            };
+        }
+
+        function newtonRaphson(functionExpr, initialValue, tolerance, maxIterations) {
+            const f = parseFunction(functionExpr);
+            
+            // Verificar que la función sea válida con el valor inicial
+            const testValue = f(initialValue);
+            if (!isFinite(testValue)) {
+                throw new Error("La función produce un valor no válido en el punto inicial.");
+            }
+            
+            let x = initialValue;
+            let iterations = [];
+            let error = 100;
+            
+            for (let i = 0; i < maxIterations; i++) {
+                const f_x = f(x);
+                const f_prime_x = MathUtils.derivative(f, x);
+                
+                // Verificar división por cero
+                if (Math.abs(f_prime_x) < 1e-10) {
+                    throw new Error(`La derivada es casi cero en x = ${x.toFixed(6)}. El método no puede continuar.`);
+                }
+                
+                const x_new = x - f_x / f_prime_x;
+                
+                // Verificar que el nuevo valor sea válido
+                if (!isFinite(x_new)) {
+                    throw new Error("El método produjo un valor no válido. Intente con otro valor inicial.");
+                }
+                
+                // Calcular error aproximado
+                if (i > 0) {
+                    error = MathUtils.calculateError(x_new, x);
+                }
+                
+                iterations.push({
+                    iteration: i + 1,
+                    x: x,
+                    f_x: f_x,
+                    f_prime_x: f_prime_x,
+                    x_new: x_new,
+                    error: i > 0 ? error : null
+                });
+                
+                // Verificar convergencia
+                if (error < tolerance && i > 0) {
+                    break;
+                }
+                
+                x = x_new;
+            }
+            
+            return { iterations, finalRoot: x, converged: error < tolerance };
+        }
+
+        function calculate() {
+            const functionExpr = document.getElementById('function').value.trim();
+            const initialValue = parseFloat(document.getElementById('initialValue').value);
+            const tolerance = parseFloat(document.getElementById('tolerance').value);
+            const maxIterations = parseInt(document.getElementById('maxIterations').value);
+            
+            // Validaciones
+            if (!functionExpr) {
+                UI.showAlert("Por favor, ingrese una función válida.", "error");
+                return;
+            }
+            
+            if (isNaN(initialValue)) {
+                UI.showAlert("Por favor, ingrese un valor inicial válido.", "error");
+                return;
+            }
+            
+            if (isNaN(tolerance) || tolerance <= 0) {
+                UI.showAlert("Por favor, ingrese un error deseado válido (mayor que 0).", "error");
+                return;
+            }
+            
+            if (isNaN(maxIterations) || maxIterations <= 0) {
+                UI.showAlert("Por favor, ingrese un número máximo de iteraciones válido.", "error");
+                return;
+            }
+            
+            try {
+                const { iterations, finalRoot, converged } = newtonRaphson(functionExpr, initialValue, tolerance, maxIterations);
+                
+                const lastIteration = iterations[iterations.length - 1];
+                const f = parseFunction(functionExpr);
+                
+                let html = `<div class="result-summary">
+                    <h3>📊 Resumen del Cálculo</h3>
+                    <p><strong>Función:</strong> f(x) = ${functionExpr}</p>
+                    <p><strong>Método:</strong> Newton-Raphson</p>
+                    <p><strong>Valor inicial:</strong> x₀ = ${MathUtils.formatNumber(initialValue, 6)}</p>
+                    <p><strong>Raíz aproximada:</strong> x = ${MathUtils.formatNumber(finalRoot)}</p>
+                    <p><strong>Verificación:</strong> f(${MathUtils.formatNumber(finalRoot)}) = ${MathUtils.formatNumber(f(finalRoot))}</p>
+                    <p><strong>Estado:</strong> ${converged ? '✅ Convergencia alcanzada' : '⚠️ Máximo de iteraciones alcanzado'}</p>
+                    <p><strong>Iteraciones realizadas:</strong> ${iterations.length}</p>
+                </div>`;
+
+                const headers = ['Iteración', 'xᵢ', 'f(xᵢ)', 'f\'(xᵢ)', 'xᵢ₊₁', 'Error (%)'];
+                const tableData = iterations.map(iter => ({
+                    iteration: iter.iteration,
+                    x: iter.x,
+                    f_x: iter.f_x,
+                    f_prime_x: iter.f_prime_x,
+                    x_new: iter.x_new,
+                    error: iter.error === null ? '-' : iter.error
+                }));
+
+                html += TableGenerator.create(headers, tableData, {
+                    cellFormatter: (value) => {
+                        if (value === '-') return value;
+                        return typeof value === 'number' ? MathUtils.formatNumber(value) : value;
+                    }
+                });
+
+                if (converged) {
+                    UI.showAlert(`¡Convergencia alcanzada! La raíz aproximada es ${MathUtils.formatNumber(finalRoot)} con un error del ${MathUtils.formatNumber(lastIteration.error || 0, 6)}%`, "success");
+                } else {
+                    UI.showAlert("Se alcanzó el máximo de iteraciones sin convergencia. Intente con otro valor inicial o aumente las iteraciones.", "warning");
+                }
+
+                UI.showResults("resultado-contenido", html);
+                
+            } catch (e) {
+                UI.showAlert(e.message, "error");
+                UI.hideResults("resultado");
+            }
+        }
+    </script>
+</body>
+</html>

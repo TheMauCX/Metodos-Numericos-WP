@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Método de la Secante - Métodos Numéricos</title>
+    <link rel="stylesheet" href="../assets/css/styles.css">
+</head>
+<body>
+    <a href="../index.html" class="back-button">← Volver al Inicio</a>
+    
+    <div class="container">
+        <div class="page-container">
+            <h1 class="page-title">Método de la Secante</h1>
+            <p class="subtitle">Aproximación de raíces sin necesidad de derivadas</p>
+
+            <div class="form-section">
+                <h2 class="section-title">Parámetros de Entrada</h2>
+                
+                <div class="form-group">
+                    <label for="funcion">Función f(x):</label>
+                    <input type="text" id="funcion" value="x*x - 4" placeholder="Ejemplo: x**2 - 4">
+                    <div class="input-help">Use notación JavaScript: x**2, Math.sin(x), Math.cos(x), Math.exp(x), etc.</div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="x0">Valor inicial x₀:</label>
+                        <input type="number" id="x0" step="any" value="6">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="x1">Valor inicial x₁:</label>
+                        <input type="number" id="x1" step="any" value="7">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="tolerance">Error deseado (%):</label>
+                        <input type="number" id="tolerance" step="0.0001" value="0.01" min="0">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="maxIterations">Número máximo de iteraciones:</label>
+                        <input type="number" id="maxIterations" value="10" min="1">
+                    </div>
+                </div>
+
+                <button class="btn btn-primary btn-block" onclick="calcular()">Calcular Raíz</button>
+            </div>
+
+            <div id="resultado" class="results-section" style="display: none;">
+                <h2 class="section-title">Resultados</h2>
+                <div id="resultado-contenido"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../assets/js/common.js"></script>
+    <script>
+        function secante(funcion, x0, x1, tolerancia, maxIteraciones) {
+            let resultados = [];
+            let xPrev = x0;
+            let xCurr = x1;
+            
+            for (let i = 0; i < maxIteraciones; i++) {
+                const fPrev = MathUtils.evaluateFunction(funcion, xPrev);
+                const fCurr = MathUtils.evaluateFunction(funcion, xCurr);
+                
+                // Verificar división por cero
+                if (Math.abs(fCurr - fPrev) < 1e-10) {
+                    throw new Error("División por cero o diferencia muy pequeña entre f(xᵢ) y f(xᵢ₋₁).");
+                }
+                
+                // Calcular siguiente aproximación
+                const xNext = xCurr - (fCurr * (xPrev - xCurr)) / (fPrev - fCurr);
+                const fNext = MathUtils.evaluateFunction(funcion, xNext);
+                
+                // Calcular error aproximado
+                const error = i === 0 ? 999 : MathUtils.calculateError(xNext, xCurr);
+                
+                resultados.push({
+                    iteracion: i + 1,
+                    xPrev: xPrev,
+                    xCurr: xCurr,
+                    xNext: xNext,
+                    fPrev: fPrev,
+                    fCurr: fCurr,
+                    fNext: fNext,
+                    error: error
+                });
+                
+                // Verificar convergencia
+                if (error < tolerancia && i > 0) {
+                    return { resultados, raiz: xNext };
+                }
+                
+                // Preparar siguiente iteración
+                xPrev = xCurr;
+                xCurr = xNext;
+            }
+            
+            return { resultados, raiz: xCurr };
+        }
+
+        function calcular() {
+            const funcion = document.getElementById("funcion").value.trim();
+            const x0 = parseFloat(document.getElementById("x0").value);
+            const x1 = parseFloat(document.getElementById("x1").value);
+            const tolerancia = parseFloat(document.getElementById("tolerance").value);
+            const maxIteraciones = parseInt(document.getElementById("maxIterations").value);
+
+            // Validaciones
+            if (!funcion) {
+                UI.showAlert("Por favor, ingrese una función válida.", "error");
+                return;
+            }
+
+            if (isNaN(x0) || isNaN(x1)) {
+                UI.showAlert("Por favor, ingrese valores iniciales válidos.", "error");
+                return;
+            }
+
+            if (isNaN(tolerancia) || tolerancia <= 0) {
+                UI.showAlert("El error deseado debe ser un número positivo.", "error");
+                return;
+            }
+
+            if (isNaN(maxIteraciones) || maxIteraciones <= 0) {
+                UI.showAlert("El número de iteraciones debe ser un entero positivo.", "error");
+                return;
+            }
+
+            try {
+                // Validar función
+                if (!Validators.isValidFunction(funcion)) {
+                    UI.showAlert("La función no es válida. Revise la sintaxis.", "error");
+                    return;
+                }
+
+                const { resultados, raiz } = secante(funcion, x0, x1, tolerancia, maxIteraciones);
+
+                let html = `<div class="result-summary">
+                    <h3>📊 Resumen del Cálculo</h3>
+                    <p><strong>Función:</strong> f(x) = ${funcion}</p>
+                    <p><strong>Valores iniciales:</strong> x₀ = ${x0}, x₁ = ${x1}</p>
+                    <p><strong>Raíz aproximada:</strong> x = ${MathUtils.formatNumber(raiz)}</p>
+                    <p><strong>Verificación:</strong> f(${MathUtils.formatNumber(raiz)}) = ${MathUtils.formatNumber(MathUtils.evaluateFunction(funcion, raiz))}</p>
+                    <p><strong>Iteraciones realizadas:</strong> ${resultados.length}</p>
+                </div>`;
+
+                const headers = ['Iteración', 'xᵢ₋₁', 'xᵢ', 'xᵢ₊₁', 'f(xᵢ₋₁)', 'f(xᵢ)', 'f(xᵢ₊₁)', 'Error (%)'];
+                const tableData = resultados.map(r => ({
+                    iteracion: r.iteracion,
+                    xPrev: r.xPrev,
+                    xCurr: r.xCurr,
+                    xNext: r.xNext,
+                    fPrev: r.fPrev,
+                    fCurr: r.fCurr,
+                    fNext: r.fNext,
+                    error: r.error
+                }));
+
+                html += TableGenerator.create(headers, tableData, {
+                    cellFormatter: (value) => {
+                        if (value === 999) return '-';
+                        return typeof value === 'number' ? MathUtils.formatNumber(value) : value;
+                    }
+                });
+
+                UI.showResults("resultado-contenido", html);
+                UI.showAlert("Cálculo completado exitosamente.", "success");
+
+            } catch (e) {
+                UI.showAlert(e.message, "error");
+                UI.hideResults("resultado");
+            }
+        }
+
+        // Configuración de validación en tiempo real
+        document.addEventListener('DOMContentLoaded', function() {
+            FormValidation.setupFunctionValidation('funcion');
+            FormValidation.setupNumericValidation('x0', { required: true });
+            FormValidation.setupNumericValidation('x1', { required: true });
+            FormValidation.setupNumericValidation('tolerance', { min: 0, positive: true, required: true });
+            FormValidation.setupNumericValidation('maxIterations', { min: 1, required: true });
+        });
+    </script>
+</body>
+</html>
