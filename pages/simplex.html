@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Método Simplex - Métodos Numéricos</title>
+    <link rel="stylesheet" href="../assets/css/styles.css">
+    <style>
+        .simplex-table {
+            font-size: 0.85rem;
+            margin: 20px 0;
+        }
+        .simplex-table th, .simplex-table td {
+            padding: 8px 6px;
+            min-width: 80px;
+        }
+        .pivot-cell {
+            background-color: #fff3cd !important;
+            font-weight: bold;
+        }
+        .basis-col {
+            background-color: #e8f8f5;
+            font-weight: 600;
+        }
+        .constraint-inputs {
+            margin: 15px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .constraint-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .small-input {
+            padding: 8px;
+            font-size: 0.9rem;
+        }
+        .iteration-header {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <a href="../index.html" class="back-button">← Volver al Inicio</a>
+    
+    <div class="container">
+        <div class="page-container">
+            <h1 class="page-title">Método Simplex</h1>
+            <p class="subtitle">Optimización de problemas de programación lineal</p>
+
+            <div class="form-section">
+                <h2 class="section-title">Configuración del Problema</h2>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="numVariables">Número de variables de decisión:</label>
+                        <input type="number" id="numVariables" min="2" max="10" value="2" class="small-input">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="numConstraints">Número de restricciones:</label>
+                        <input type="number" id="numConstraints" min="1" max="10" value="2" class="small-input">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="optimization">Tipo de optimización:</label>
+                        <select id="optimization" class="small-input">
+                            <option value="max">Maximizar</option>
+                            <option value="min">Minimizar</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" onclick="generateInputs()">Generar Formulario</button>
+
+                <div id="problemInputs" style="display: none;">
+                    <h3 class="section-title" style="margin-top: 30px;">Función Objetivo</h3>
+                    <div id="objectiveFunction" class="constraint-inputs"></div>
+
+                    <h3 class="section-title">Restricciones</h3>
+                    <div id="constraintsInputs"></div>
+
+                    <button class="btn btn-success btn-block" onclick="solveSimplex()">Resolver con Simplex</button>
+                </div>
+            </div>
+
+            <div id="resultado" class="results-section" style="display: none;">
+                <h2 class="section-title">Resultados del Método Simplex</h2>
+                <div id="resultado-contenido"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../assets/js/common.js"></script>
+    <script>
+        let numVars = 2;
+        let numConstr = 2;
+
+        function generateInputs() {
+            numVars = parseInt(document.getElementById('numVariables').value);
+            numConstr = parseInt(document.getElementById('numConstraints').value);
+
+            if (numVars < 2 || numVars > 10) {
+                UI.showAlert("El número de variables debe estar entre 2 y 10.", "error");
+                return;
+            }
+
+            if (numConstr < 1 || numConstr > 10) {
+                UI.showAlert("El número de restricciones debe estar entre 1 y 10.", "error");
+                return;
+            }
+
+            // Generar función objetivo
+            let objHTML = '<div class="constraint-row">';
+            for (let i = 0; i < numVars; i++) {
+                objHTML += `
+                    <div class="form-group">
+                        <label for="c${i}">Coef. x${i + 1}:</label>
+                        <input type="number" id="c${i}" step="any" value="${i === 0 ? '3' : '5'}" class="small-input">
+                    </div>
+                `;
+            }
+            objHTML += '</div>';
+            document.getElementById('objectiveFunction').innerHTML = objHTML;
+
+            // Generar restricciones
+            let constrHTML = '';
+            for (let i = 0; i < numConstr; i++) {
+                constrHTML += `
+                    <div class="constraint-inputs">
+                        <h4>Restricción ${i + 1}</h4>
+                        <div class="constraint-row">
+                `;
+                
+                for (let j = 0; j < numVars; j++) {
+                    constrHTML += `
+                        <div class="form-group">
+                            <label for="a${i}_${j}">Coef. x${j + 1}:</label>
+                            <input type="number" id="a${i}_${j}" step="any" value="${j === 0 ? '1' : '0'}" class="small-input">
+                        </div>
+                    `;
+                }
+                
+                constrHTML += `
+                        <div class="form-group">
+                            <label for="sign${i}">Signo:</label>
+                            <select id="sign${i}" class="small-input">
+                                <option value="<=" selected>≤</option>
+                                <option value=">=">≥</option>
+                                <option value="=">=</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="b${i}">RHS:</label>
+                            <input type="number" id="b${i}" step="any" value="${i === 0 ? '4' : '6'}" class="small-input">
+                        </div>
+                    </div>
+                </div>
+                `;
+            }
+            document.getElementById('constraintsInputs').innerHTML = constrHTML;
+            document.getElementById('problemInputs').style.display = 'block';
+            
+            UI.showAlert("Formulario generado. Complete los valores y presione 'Resolver'.", "info");
+        }
+
+        class SimplexSolver {
+            constructor(c, A, b, signs, optimization) {
+                this.c = c;
+                this.A = A;
+                this.b = b;
+                this.signs = signs;
+                this.optimization = optimization;
+                this.iterations = [];
+                this.numOriginalVars = c.length;
+            }
+
+            solve() {
+                // Convertir a forma estándar
+                this.convertToStandardForm();
+                
+                // Crear tabla inicial
+                this.createInitialTableau();
+                
+                // Resolver
+                let iteration = 0;
+                const maxIterations = 100;
+                
+                while (iteration < maxIterations) {
+                    this.saveIteration(iteration);
+                    
+                    // Verificar optimalidad
+                    if (this.isOptimal()) {
+                        this.saveIteration(iteration + 1, true);
+                        break;
+                    }
+                    
+                    // Seleccionar columna pivote
+                    const pivotCol = this.selectPivotColumn();
+                    if (pivotCol === -1) break;
+                    
+                    // Seleccionar fila pivote
+                    const pivotRow = this.selectPivotRow(pivotCol);
+                    if (pivotRow === -1) {
+                        throw new Error("Problema no acotado: no se puede encontrar una solución óptima finita.");
+                    }
+                    
+                    // Realizar operación pivote
+                    this.pivot(pivotRow, pivotCol);
+                    
+                    iteration++;
+                }
+                
+                if (iteration >= maxIterations) {
+                    throw new Error("Se alcanzó el máximo de iteraciones sin convergencia.");
+                }
+                
+                return this.getSolution();
+            }
+
+            convertToStandardForm() {
+                let newA = [];
+                let newC = [...this.c];
+                let slackVarCount = 0;
+                
+                // Si es minimización, convertir a maximización
+                if (this.optimization === 'min') {
+                    newC = newC.map(x => -x);
+                }
+                
+                // Agregar variables de holgura/exceso
+                for (let i = 0; i < this.A.length; i++) {
+                    let row = [...this.A[i]];
+                    
+                    // Agregar variables de holgura para cada restricción
+                    for (let j = 0; j < this.A.length; j++) {
+                        if (i === j) {
+                            row.push(this.signs[i] === '<=' ? 1 : (this.signs[i] === '>=' ? -1 : 0));
+                        } else {
+                            row.push(0);
+                        }
+                    }
+                    
+                    newA.push(row);
+                    slackVarCount++;
+                }
+                
+                // Agregar ceros en la función objetivo para variables de holgura
+                for (let i = 0; i < slackVarCount; i++) {
+                    newC.push(0);
+                }
+                
+                this.A = newA;
+                this.c = newC;
+                this.numSlackVars = slackVarCount;
+            }
+
+            createInitialTableau() {
+                const m = this.A.length;
+                const n = this.c.length;
+                
+                // Crear tableau: [A | b; -c | 0]
+                this.tableau = [];
+                
+                // Filas de restricciones
+                for (let i = 0; i < m; i++) {
+                    this.tableau.push([...this.A[i], this.b[i]]);
+                }
+                
+                // Fila Z (función objetivo)
+                const zRow = this.c.map(x => -x);
+                zRow.push(0); // Valor inicial de Z
+                this.tableau.push(zRow);
+                
+                // Variables básicas (inicialmente variables de holgura)
+                this.basis = [];
+                for (let i = 0; i < m; i++) {
+                    this.basis.push(this.numOriginalVars + i);
+                }
+            }
+
+            isOptimal() {
+                const zRow = this.tableau[this.tableau.length - 1];
+                // Óptimo si todos los coeficientes (excepto el último) son >= 0
+                for (let j = 0; j < zRow.length - 1; j++) {
+                    if (zRow[j] < -1e-10) return false;
+                }
+                return true;
+            }
+
+            selectPivotColumn() {
+                const zRow = this.tableau[this.tableau.length - 1];
+                let minValue = 0;
+                let pivotCol = -1;
+                
+                for (let j = 0; j < zRow.length - 1; j++) {
+                    if (zRow[j] < minValue) {
+                        minValue = zRow[j];
+                        pivotCol = j;
+                    }
+                }
+                
+                return pivotCol;
+            }
+
+            selectPivotRow(pivotCol) {
+                let minRatio = Infinity;
+                let pivotRow = -1;
+                
+                for (let i = 0; i < this.tableau.length - 1; i++) {
+                    const element = this.tableau[i][pivotCol];
+                    const rhs = this.tableau[i][this.tableau[i].length - 1];
+                    
+                    if (element > 1e-10) {
+                        const ratio = rhs / element;
+                        if (ratio >= 0 && ratio < minRatio) {
+                            minRatio = ratio;
+                            pivotRow = i;
+                        }
+                    }
+                }
+                
+                return pivotRow;
+            }
+
+            pivot(pivotRow, pivotCol) {
+                const pivotElement = this.tableau[pivotRow][pivotCol];
+                
+                // Dividir la fila pivote por el elemento pivote
+                for (let j = 0; j < this.tableau[pivotRow].length; j++) {
+                    this.tableau[pivotRow][j] /= pivotElement;
+                }
+                
+                // Hacer ceros en la columna pivote
+                for (let i = 0; i < this.tableau.length; i++) {
+                    if (i !== pivotRow) {
+                        const factor = this.tableau[i][pivotCol];
+                        for (let j = 0; j < this.tableau[i].length; j++) {
+                            this.tableau[i][j] -= factor * this.tableau[pivotRow][j];
+                        }
+                    }
+                }
+                
+                // Actualizar base
+                this.basis[pivotRow] = pivotCol;
+                this.pivotRow = pivotRow;
+                this.pivotCol = pivotCol;
+            }
+
+            saveIteration(iteration, isFinal = false) {
+                this.iterations.push({
+                    iteration,
+                    tableau: this.tableau.map(row => [...row]),
+                    basis: [...this.basis],
+                    pivotRow: this.pivotRow,
+                    pivotCol: this.pivotCol,
+                    isFinal
+                });
+            }
+
+            getSolution() {
+                const solution = new Array(this.numOriginalVars).fill(0);
+                
+                for (let i = 0; i < this.basis.length; i++) {
+                    const varIndex = this.basis[i];
+                    if (varIndex < this.numOriginalVars) {
+                        solution[varIndex] = this.tableau[i][this.tableau[i].length - 1];
+                    }
+                }
+                
+                let optimalValue = this.tableau[this.tableau.length - 1][this.tableau[0].length - 1];
+                
+                // Si era minimización, cambiar el signo
+                if (this.optimization === 'min') {
+                    optimalValue = -optimalValue;
+                }
+                
+                return {
+                    variables: solution,
+                    optimalValue: optimalValue
+                };
+            }
+        }
+
+        function solveSimplex() {
+            try {
+                // Recoger datos de la función objetivo
+                const c = [];
+                for (let i = 0; i < numVars; i++) {
+                    const value = parseFloat(document.getElementById(`c${i}`).value);
+                    if (isNaN(value)) {
+                        UI.showAlert(`Coeficiente de x${i+1} en la función objetivo es inválido.`, "error");
+                        return;
+                    }
+                    c.push(value);
+                }
+
+                // Recoger datos de las restricciones
+                const A = [];
+                const b = [];
+                const signs = [];
+                
+                for (let i = 0; i < numConstr; i++) {
+                    const row = [];
+                    for (let j = 0; j < numVars; j++) {
+                        const value = parseFloat(document.getElementById(`a${i}_${j}`).value);
+                        if (isNaN(value)) {
+                            UI.showAlert(`Coeficiente en restricción ${i+1} es inválido.`, "error");
+                            return;
+                        }
+                        row.push(value);
+                    }
+                    A.push(row);
+                    
+                    const rhsValue = parseFloat(document.getElementById(`b${i}`).value);
+                    if (isNaN(rhsValue)) {
+                        UI.showAlert(`Lado derecho de restricción ${i+1} es inválido.`, "error");
+                        return;
+                    }
+                    b.push(rhsValue);
+                    
+                    signs.push(document.getElementById(`sign${i}`).value);
+                }
+
+                const optimization = document.getElementById('optimization').value;
+
+                // Resolver
+                const solver = new SimplexSolver(c, A, b, signs, optimization);
+                const solution = solver.solve();
+
+                // Mostrar resultados
+                displayResults(solver, solution, c, optimization);
+
+            } catch (e) {
+                UI.showAlert("Error: " + e.message, "error");
+                console.error(e);
+            }
+        }
+
+        function displayResults(solver, solution, c, optimization) {
+            let html = `<div class="result-summary">
+                <h3>✅ Solución Óptima Encontrada</h3>
+                <p><strong>Tipo:</strong> ${optimization === 'max' ? 'Maximización' : 'Minimización'}</p>
+                <p><strong>Valor óptimo Z:</strong> ${MathUtils.formatNumber(solution.optimalValue, 6)}</p>
+                <p><strong>Variables de decisión:</strong></p>
+                <ul>`;
+            
+            for (let i = 0; i < solution.variables.length; i++) {
+                html += `<li>x${i + 1} = ${MathUtils.formatNumber(solution.variables[i], 6)}</li>`;
+            }
+            
+            html += `</ul>
+                <p><strong>Iteraciones realizadas:</strong> ${solver.iterations.length - 1}</p>
+            </div>`;
+
+            // Mostrar cada iteración
+            solver.iterations.forEach((iter, index) => {
+                html += `<div class="iteration-header">
+                    <h4>📋 ${iter.isFinal ? 'Tabla Final (Óptima)' : `Iteración ${iter.iteration}`}</h4>
+                </div>`;
+                
+                html += generateTableauHTML(iter, solver.numOriginalVars);
+            });
+
+            document.getElementById("resultado-contenido").innerHTML = html;
+            document.getElementById("resultado").style.display = "block";
+            
+            UI.showAlert("Problema resuelto exitosamente usando el Método Simplex.", "success");
+        }
+
+        function generateTableauHTML(iter, numOriginalVars) {
+            const tableau = iter.tableau;
+            const basis = iter.basis;
+            const numCols = tableau[0].length;
+            
+            let html = `<div class="table-container">
+                <table class="simplex-table">
+                    <thead>
+                        <tr>
+                            <th class="basis-col">Base</th>`;
+            
+            // Headers para variables
+            for (let j = 0; j < numCols - 1; j++) {
+                if (j < numOriginalVars) {
+                    html += `<th>x${j + 1}</th>`;
+                } else {
+                    html += `<th>s${j - numOriginalVars + 1}</th>`;
+                }
+            }
+            html += `<th>RHS</th></tr></thead><tbody>`;
+            
+            // Filas de restricciones
+            for (let i = 0; i < tableau.length - 1; i++) {
+                html += `<tr><td class="basis-col">`;
+                
+                const varIndex = basis[i];
+                if (varIndex < numOriginalVars) {
+                    html += `x${varIndex + 1}`;
+                } else {
+                    html += `s${varIndex - numOriginalVars + 1}`;
+                }
+                
+                html += `</td>`;
+                
+                for (let j = 0; j < numCols; j++) {
+                    const isPivot = (i === iter.pivotRow && j === iter.pivotCol);
+                    const cellClass = isPivot ? 'pivot-cell' : '';
+                    html += `<td class="${cellClass}">${MathUtils.formatNumber(tableau[i][j], 4)}</td>`;
+                }
+                html += `</tr>`;
+            }
+            
+            // Fila Z
+            html += `<tr><td class="basis-col"><strong>Z</strong></td>`;
+            for (let j = 0; j < numCols; j++) {
+                html += `<td><strong>${MathUtils.formatNumber(tableau[tableau.length - 1][j], 4)}</strong></td>`;
+            }
+            html += `</tr></tbody></table></div>`;
+            
+            return html;
+        }
+
+        // Generar formulario inicial al cargar
+        window.addEventListener('DOMContentLoaded', function() {
+            FormValidation.setupNumericValidation('numVariables', { min: 2, max: 10, required: true });
+            FormValidation.setupNumericValidation('numConstraints', { min: 1, max: 10, required: true });
+        });
+    </script>
+</body>
+</html>
