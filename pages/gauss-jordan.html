@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Método de Gauss-Jordan</title>
+  <link rel="stylesheet" href="../assets/css/styles.css"/>
+</head>
+<body>
+  <div class="container">
+    <a href="../index.html" class="back-button">← Volver al inicio</a>
+
+    <div class="page-container">
+      <h2 class="page-title">🧮 Método de Gauss-Jordan</h2>
+      <p style="text-align:center; margin-bottom:20px; color:var(--text-secondary);">Forma escalonada reducida por renglones (RREF)</p>
+
+      <!-- Configuración de tamaño -->
+      <div class="form-section">
+        <h3 class="section-title">Dimensiones del sistema</h3>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="rows">Número de filas (ecuaciones)</label>
+            <select id="rows" onchange="updateMatrix()">
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4" selected>4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+            </select>
+            <p class="input-help">m = filas de A (y de [A|b])</p>
+          </div>
+
+          <div class="form-group">
+            <label for="cols">Número de columnas (variables)</label>
+            <select id="cols" onchange="updateMatrix()">
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4" selected>4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+            </select>
+            <p class="input-help">n = columnas de A (no incluye b)</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ingreso de matriz -->
+      <div class="form-section">
+        <h3 class="section-title">Matriz aumentada [A | b]</h3>
+        <div id="matrixInput" class="form-group"></div>
+        <button class="btn btn-primary btn-block" onclick="solve()">Resolver Sistema</button>
+      </div>
+
+      <!-- Resultados -->
+      <div class="results-section" id="results"></div>
+    </div>
+
+    <footer class="footer">
+      &copy; 2024 Métodos Numéricos - Herramientas de Análisis Matemático
+    </footer>
+  </div>
+
+  <script>
+    function updateMatrix() {
+      const rows = parseInt(document.getElementById('rows').value);
+      const cols = parseInt(document.getElementById('cols').value);
+      const container = document.getElementById('matrixInput');
+
+      let html = '';
+      for (let i = 0; i < rows; i++) {
+        html += '<div class="form-row" style="align-items:center;">';
+        for (let j = 0; j < cols; j++) {
+          html += `
+          <div class="form-group">
+            <label>a${i+1}${j+1}</label>
+            <input type="number" step="any" id="a${i}${j}" value="${i===j?1:0}">
+          </div>`;
+        }
+        html += `
+        <div class="form-group" style="max-width:110px;">
+          <label>b${i+1}</label>
+          <input type="number" step="any" id="b${i}" value="0">
+        </div>`;
+        html += '</div>';
+      }
+      container.innerHTML = html;
+
+      if (rows === 4 && cols === 4) {
+        document.getElementById('a00').value = 1;
+        document.getElementById('a01').value = 4;
+        document.getElementById('a02').value = -1;
+        document.getElementById('a03').value = 1;
+        document.getElementById('b0').value  = 2;
+
+        document.getElementById('a10').value = 2;
+        document.getElementById('a11').value = 7;
+        document.getElementById('a12').value = 1;
+        document.getElementById('a13').value = -2;
+        document.getElementById('b1').value  = 16;
+
+        document.getElementById('a20').value = 1;
+        document.getElementById('a21').value = 4;
+        document.getElementById('a22').value = -1;
+        document.getElementById('a23').value = 2;
+        document.getElementById('b2').value  = 1;
+
+        document.getElementById('a30').value = 3;
+        document.getElementById('a31').value = -10;
+        document.getElementById('a32').value = -2;
+        document.getElementById('a33').value = 5;
+        document.getElementById('b3').value  = -15;
+      }
+    }
+
+    function getMatrix() {
+      const rows = parseInt(document.getElementById('rows').value);
+      const cols = parseInt(document.getElementById('cols').value);
+      const matrix = [];
+      for (let i = 0; i < rows; i++) {
+        const row = [];
+        for (let j = 0; j < cols; j++) {
+          row.push(parseFloat(document.getElementById(`a${i}${j}`).value) || 0);
+        }
+        row.push(parseFloat(document.getElementById(`b${i}`).value) || 0);
+        matrix.push(row);
+      }
+      return matrix;
+    }
+
+    function displayMatrix(matrix, title = "") {
+      let html = '<div class="result-card">';
+      if (title) html += `<h3 style="color:var(--primary-color); margin-bottom:10px;">${title}</h3>`;
+      html += '<div class="table-container"><pre style="padding:16px; margin:0;">';
+
+      const maxLength = Math.max(...matrix.flat().map(n => String(Number.isFinite(n)? n : 0).length));
+
+      for (let i = 0; i < matrix.length; i++) {
+        html += i === 0 ? '┌ ' : (i === matrix.length - 1 ? '└ ' : '│ ');
+        for (let j = 0; j < matrix[i].length; j++) {
+          const val = (Number.isFinite(matrix[i][j]) ? matrix[i][j] : 0).toFixed(2).replace(/\.00$/, '');
+          if (j === matrix[i].length - 1) {
+            html += ' | ' + val.toString().padStart(maxLength + 3);
+          } else {
+            html += val.toString().padStart(maxLength + 3);
+          }
+        }
+        html += i === 0 ? ' ┐\n' : (i === matrix.length - 1 ? ' ┘\n' : ' │\n');
+      }
+      html += '</pre></div></div>';
+      return html;
+    }
+
+    function gaussJordan(matrix) {
+      const n = matrix.length;
+      const m = matrix[0].length - 1;
+      let html = '';
+
+      html += displayMatrix(matrix, "Matriz Aumentada Inicial");
+
+      for (let k = 0; k < Math.min(n, m); k++) {
+        let maxRow = k;
+        for (let i = k + 1; i < n; i++) {
+          if (Math.abs(matrix[i][k]) > Math.abs(matrix[maxRow][k])) maxRow = i;
+        }
+        if (maxRow !== k) {
+          [matrix[k], matrix[maxRow]] = [matrix[maxRow], matrix[k]];
+          html += displayMatrix(matrix, `Intercambio F${k+1} ↔ F${maxRow+1}`);
+        }
+
+        let stepHtml = '<div class="result-card"><h3 style="color:var(--primary-color);">PASO ' + (k + 1) + ': Ceros en la columna x' + (k + 1) + '</h3>';
+        let changed = false;
+
+        if (matrix[k][k] !== 0 && matrix[k][k] !== 1) {
+          const pivot = matrix[k][k];
+          stepHtml += `<div class="alert alert-info"><strong>F${k+1} = F${k+1} / ${pivot.toFixed(6)}</strong></div>`;
+          for (let j = 0; j < matrix[k].length; j++) matrix[k][j] /= pivot;
+          changed = true;
+        }
+
+        for (let i = k + 1; i < n; i++) {
+          if (matrix[k][k] !== 0 && matrix[i][k] !== 0) {
+            const factor = matrix[i][k] / matrix[k][k];
+            stepHtml += `<div class="alert alert-info"><strong>F${i+1} = F${i+1} - (${factor.toFixed(6)})F${k+1}</strong></div>`;
+            for (let j = k; j < matrix[i].length; j++) matrix[i][j] -= factor * matrix[k][j];
+            changed = true;
+          }
+        }
+
+        if (changed) {
+          stepHtml += displayMatrix(matrix, `Matriz después del Paso ${k + 1}`).replace('<div class="result-card">','').replace('</div>','');
+          stepHtml += '</div>';
+          html += stepHtml;
+        }
+      }
+
+      html += displayMatrix(matrix, "MATRIZ ESCALONADA");
+
+      for (let k = Math.min(n, m) - 1; k >= 0; k--) {
+        let stepHtml = '<div class="result-card"><h3 style="color:var(--primary-color);">ELIMINACIÓN HACIA ARRIBA - Columna x' + (k + 1) + '</h3>';
+        let changed = false;
+
+        for (let i = k - 1; i >= 0; i--) {
+          if (matrix[k][k] !== 0 && matrix[i][k] !== 0) {
+            const factor = matrix[i][k] / matrix[k][k];
+            stepHtml += `<div class="alert alert-info"><strong>F${i+1} = F${i+1} - (${factor.toFixed(6)})F${k+1}</strong></div>`;
+            for (let j = k; j < matrix[i].length; j++) matrix[i][j] -= factor * matrix[k][j];
+            changed = true;
+          }
+        }
+
+        if (changed) {
+          stepHtml += displayMatrix(matrix, `Matriz después de eliminar en columna ${k + 1}`).replace('<div class="result-card">','').replace('</div>','');
+          stepHtml += '</div>';
+          html += stepHtml;
+        }
+      }
+
+      html += displayMatrix(matrix, "MATRIZ IDENTIDAD (RREF)");
+      return { matrix, html };
+    }
+
+    function solve() {
+      const matrix = getMatrix();
+      const resultsDiv = document.getElementById('results');
+      let html = '';
+
+      const { matrix: reduced, html: stepsHtml } = gaussJordan(JSON.parse(JSON.stringify(matrix)));
+      html += stepsHtml;
+
+      html += '<div class="result-summary"><strong>✅ SOLUCIÓN FINAL (RREF)</strong></div>';
+      html += '<div class="result-card">';
+      for (let i=0;i<reduced.length;i++){
+        const last = reduced[i][reduced[i].length-1];
+        html += `<p><strong>x${i+1} =</strong> ${Number(last).toFixed(6)}</p>`;
+      }
+      html += '</div>';
+
+      resultsDiv.innerHTML = html;
+      resultsDiv.scrollIntoView({behavior:'smooth', block:'start'});
+    }
+
+    updateMatrix();
+  </script>
+</body>
+</html>
