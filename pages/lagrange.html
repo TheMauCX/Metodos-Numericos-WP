@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interpolación de Lagrange - Métodos Numéricos</title>
+    <link rel="stylesheet" href="../assets/css/styles.css">
+    <style>
+        .point-input-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 50px;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: end;
+        }
+        .polynomial-display {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 1.1rem;
+            line-height: 1.8;
+            overflow-x: auto;
+        }
+        .lagrange-term {
+            display: block;
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .basis-polynomial {
+            background: #f8f9fa;
+            padding: 15px;
+            border-left: 4px solid var(--secondary-color);
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+        }
+        .evaluation-section {
+            background: linear-gradient(135deg, #e8f8f5, #d5f4e6);
+            border: 2px solid var(--success-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .chart-container {
+            margin: 20px 0;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+        }
+        .point-badge {
+            display: inline-block;
+            background: var(--secondary-color);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            margin: 5px;
+            font-size: 0.9rem;
+        }
+        .btn-small {
+            padding: 8px 12px;
+            font-size: 0.85rem;
+            min-width: auto;
+        }
+    </style>
+</head>
+<body>
+    <a href="../index.html" class="back-button">← Volver al Inicio</a>
+    
+    <div class="container">
+        <div class="page-container">
+            <h1 class="page-title">Interpolación Polinómica de Lagrange</h1>
+            <p class="subtitle">Construye polinomios que pasan exactamente por un conjunto de puntos dados</p>
+
+            <div class="form-section">
+                <h2 class="section-title">Método de Entrada de Datos</h2>
+                
+                <div class="form-group">
+                    <label for="inputMethod">Seleccione el método de entrada:</label>
+                    <select id="inputMethod" onchange="toggleInputMethod()">
+                        <option value="manual">Entrada manual de puntos</option>
+                        <option value="function">Generar desde una función</option>
+                    </select>
+                </div>
+
+                <!-- Entrada Manual -->
+                <div id="manualInput">
+                    <h3 class="section-title">Puntos de Interpolación</h3>
+                    <p class="input-help">Ingrese los pares de puntos (x, y) que desea interpolar:</p>
+                    
+                    <div id="pointsContainer"></div>
+                    
+                    <div style="margin: 15px 0;">
+                        <button class="btn btn-primary btn-small" onclick="addPoint()">➕ Agregar Punto</button>
+                        <button class="btn btn-warning btn-small" onclick="removeLastPoint()">➖ Eliminar Último</button>
+                        <button class="btn btn-success btn-small" onclick="loadExamplePoints()">📝 Cargar Ejemplo</button>
+                    </div>
+                </div>
+
+                <!-- Entrada desde Función -->
+                <div id="functionInput" style="display: none;">
+                    <h3 class="section-title">Generar Puntos desde Función</h3>
+                    
+                    <div class="form-group">
+                        <label for="sourceFunction">Función f(x):</label>
+                        <input type="text" id="sourceFunction" value="Math.sin(x)" placeholder="Ejemplo: Math.sin(x), x**2, Math.exp(x)">
+                        <div class="input-help">Use notación JavaScript: x**2, Math.sin(x), Math.cos(x), Math.exp(x), etc.</div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="xStart">Valor inicial de x:</label>
+                            <input type="number" id="xStart" step="any" value="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="xEnd">Valor final de x:</label>
+                            <input type="number" id="xEnd" step="any" value="6.28">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="numPoints">Número de puntos:</label>
+                            <input type="number" id="numPoints" min="2" max="20" value="5">
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="generatePointsFromFunction()">Generar Puntos</button>
+                </div>
+
+                <h3 class="section-title" style="margin-top: 30px;">Evaluación del Polinomio</h3>
+                
+                <div class="form-group">
+                    <label for="evalPoints">Valores de x para evaluar (separados por comas):</label>
+                    <input type="text" id="evalPoints" placeholder="Ejemplo: 1.5, 2.3, 3.7">
+                    <div class="input-help">Ingrese los valores de x donde desea evaluar el polinomio interpolador</div>
+                </div>
+
+                <button class="btn btn-success btn-block" onclick="calculateLagrange()">🔬 Calcular Interpolación</button>
+            </div>
+
+            <div id="resultado" class="results-section" style="display: none;">
+                <h2 class="section-title">Resultados de la Interpolación</h2>
+                <div id="resultado-contenido"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../assets/js/common.js"></script>
+    <script>
+        let pointCount = 3;
+
+        function toggleInputMethod() {
+            const method = document.getElementById('inputMethod').value;
+            const manualDiv = document.getElementById('manualInput');
+            const functionDiv = document.getElementById('functionInput');
+            
+            if (method === 'manual') {
+                manualDiv.style.display = 'block';
+                functionDiv.style.display = 'none';
+            } else {
+                manualDiv.style.display = 'none';
+                functionDiv.style.display = 'block';
+            }
+        }
+
+        function initializePoints() {
+            const container = document.getElementById('pointsContainer');
+            container.innerHTML = '';
+            
+            for (let i = 0; i < pointCount; i++) {
+                addPointRow(i);
+            }
+        }
+
+        function addPointRow(index) {
+            const container = document.getElementById('pointsContainer');
+            const row = document.createElement('div');
+            row.className = 'point-input-row';
+            row.id = `point-row-${index}`;
+            
+            const exampleX = [0, 1, 2, 3, 4, 5];
+            const exampleY = [1, 2.7183, 7.3891, 20.0855, 54.5982, 148.4132];
+            
+            row.innerHTML = `
+                <div class="form-group">
+                    <label for="x${index}">x${index}:</label>
+                    <input type="number" id="x${index}" step="any" value="${exampleX[index] || index}" placeholder="Valor de x">
+                </div>
+                <div class="form-group">
+                    <label for="y${index}">y${index} = f(x${index}):</label>
+                    <input type="number" id="y${index}" step="any" value="${exampleY[index] || (index * index)}" placeholder="Valor de f(x)">
+                </div>
+                <button class="btn btn-warning btn-small" onclick="removePoint(${index})" title="Eliminar este punto">🗑️</button>
+            `;
+            
+            container.appendChild(row);
+        }
+
+        function addPoint() {
+            addPointRow(pointCount);
+            pointCount++;
+            UI.showAlert("Punto agregado.", "success", 2000);
+        }
+
+        function removePoint(index) {
+            const row = document.getElementById(`point-row-${index}`);
+            if (row) {
+                row.remove();
+                UI.showAlert("Punto eliminado.", "info", 2000);
+            }
+        }
+
+        function removeLastPoint() {
+            if (pointCount <= 2) {
+                UI.showAlert("Debe haber al menos 2 puntos para la interpolación.", "warning");
+                return;
+            }
+            
+            const lastIndex = pointCount - 1;
+            removePoint(lastIndex);
+            pointCount--;
+        }
+
+        function loadExamplePoints() {
+            pointCount = 5;
+            initializePoints();
+            UI.showAlert("Ejemplo cargado: puntos de f(x) = e^x", "info");
+        }
+
+        function generatePointsFromFunction() {
+            const funcStr = document.getElementById('sourceFunction').value.trim();
+            const xStart = parseFloat(document.getElementById('xStart').value);
+            const xEnd = parseFloat(document.getElementById('xEnd').value);
+            const numPoints = parseInt(document.getElementById('numPoints').value);
+            
+            if (!funcStr) {
+                UI.showAlert("Ingrese una función válida.", "error");
+                return;
+            }
+            
+            if (isNaN(xStart) || isNaN(xEnd) || xStart >= xEnd) {
+                UI.showAlert("Los valores inicial y final de x deben ser válidos y xStart < xEnd.", "error");
+                return;
+            }
+            
+            if (isNaN(numPoints) || numPoints < 2 || numPoints > 20) {
+                UI.showAlert("El número de puntos debe estar entre 2 y 20.", "error");
+                return;
+            }
+            
+            try {
+                if (!Validators.isValidFunction(funcStr)) {
+                    UI.showAlert("La función no es válida. Revise la sintaxis.", "error");
+                    return;
+                }
+                
+                // Limpiar puntos actuales
+                document.getElementById('pointsContainer').innerHTML = '';
+                pointCount = 0;
+                
+                // Generar puntos equiespaciados
+                const step = (xEnd - xStart) / (numPoints - 1);
+                
+                for (let i = 0; i < numPoints; i++) {
+                    const x = xStart + (i * step);
+                    const y = MathUtils.evaluateFunction(funcStr, x);
+                    
+                    const container = document.getElementById('pointsContainer');
+                    const row = document.createElement('div');
+                    row.className = 'point-input-row';
+                    row.id = `point-row-${i}`;
+                    
+                    row.innerHTML = `
+                        <div class="form-group">
+                            <label for="x${i}">x${i}:</label>
+                            <input type="number" id="x${i}" step="any" value="${x.toFixed(6)}" placeholder="Valor de x">
+                        </div>
+                        <div class="form-group">
+                            <label for="y${i}">y${i} = f(x${i}):</label>
+                            <input type="number" id="y${i}" step="any" value="${y.toFixed(6)}" placeholder="Valor de f(x)">
+                        </div>
+                        <button class="btn btn-warning btn-small" onclick="removePoint(${i})" title="Eliminar este punto">🗑️</button>
+                    `;
+                    
+                    container.appendChild(row);
+                    pointCount++;
+                }
+                
+                // Cambiar a vista manual
+                document.getElementById('inputMethod').value = 'manual';
+                toggleInputMethod();
+                
+                UI.showAlert(`${numPoints} puntos generados exitosamente desde f(x) = ${funcStr}`, "success");
+                
+            } catch (e) {
+                UI.showAlert("Error al generar puntos: " + e.message, "error");
+            }
+        }
+
+        function getPoints() {
+            const points = [];
+            const container = document.getElementById('pointsContainer');
+            const rows = container.querySelectorAll('.point-input-row');
+            
+            rows.forEach((row, index) => {
+                const xInput = row.querySelector(`input[id^="x"]`);
+                const yInput = row.querySelector(`input[id^="y"]`);
+                
+                if (xInput && yInput) {
+                    const x = parseFloat(xInput.value);
+                    const y = parseFloat(yInput.value);
+                    
+                    if (!isNaN(x) && !isNaN(y)) {
+                        points.push({ x, y });
+                    }
+                }
+            });
+            
+            return points;
+        }
+
+        class LagrangeInterpolation {
+            constructor(points) {
+                this.points = points;
+                this.n = points.length;
+            }
+
+            // Calcular el polinomio base de Lagrange L_i(x)
+            basisPolynomial(i, x) {
+                let result = 1.0;
+                const xi = this.points[i].x;
+                
+                for (let j = 0; j < this.n; j++) {
+                    if (i !== j) {
+                        const xj = this.points[j].x;
+                        result *= (x - xj) / (xi - xj);
+                    }
+                }
+                
+                return result;
+            }
+
+            // Generar expresión simbólica del polinomio base L_i(x)
+            getBasisPolynomialExpression(i) {
+                const xi = this.points[i].x;
+                let numerator = [];
+                let denominator = 1;
+                
+                for (let j = 0; j < this.n; j++) {
+                    if (i !== j) {
+                        const xj = this.points[j].x;
+                        numerator.push(`(x - ${MathUtils.formatNumber(xj, 4)})`);
+                        denominator *= (xi - xj);
+                    }
+                }
+                
+                return {
+                    expression: `L${i}(x) = ${numerator.join(' · ')} / ${MathUtils.formatNumber(denominator, 6)}`,
+                    coefficient: this.points[i].y
+                };
+            }
+
+            // Evaluar el polinomio interpolador en un punto x
+            evaluate(x) {
+                let result = 0.0;
+                
+                for (let i = 0; i < this.n; i++) {
+                    const Li = this.basisPolynomial(i, x);
+                    result += this.points[i].y * Li;
+                }
+                
+                return result;
+            }
+
+            // Obtener detalles completos de la interpolación
+            getFullDetails() {
+                const details = {
+                    basisPolynomials: [],
+                    simplifiedExpression: this.getSimplifiedExpression()
+                };
+                
+                for (let i = 0; i < this.n; i++) {
+                    details.basisPolynomials.push(this.getBasisPolynomialExpression(i));
+                }
+                
+                return details;
+            }
+
+            // Generar expresión simplificada del polinomio completo
+            getSimplifiedExpression() {
+                let expression = "P(x) = ";
+                const terms = [];
+                
+                for (let i = 0; i < this.n; i++) {
+                    const basis = this.getBasisPolynomialExpression(i);
+                    const coef = MathUtils.formatNumber(basis.coefficient, 4);
+                    terms.push(`${coef} · L${i}(x)`);
+                }
+                
+                expression += terms.join(" + ");
+                return expression;
+            }
+
+            // Evaluar múltiples puntos
+            evaluateMultiple(xValues) {
+                return xValues.map(x => ({
+                    x: x,
+                    y: this.evaluate(x)
+                }));
+            }
+        }
+
+        function calculateLagrange() {
+            try {
+                // Obtener puntos
+                const points = getPoints();
+                
+                if (points.length < 2) {
+                    UI.showAlert("Se necesitan al menos 2 puntos para realizar la interpolación.", "error");
+                    return;
+                }
+                
+                // Verificar que no haya puntos x repetidos
+                const xValues = points.map(p => p.x);
+                const uniqueX = new Set(xValues);
+                if (uniqueX.size !== xValues.length) {
+                    UI.showAlert("No puede haber valores de x repetidos.", "error");
+                    return;
+                }
+                
+                // Ordenar puntos por x
+                points.sort((a, b) => a.x - b.x);
+                
+                // Crear interpolador
+                const interpolator = new LagrangeInterpolation(points);
+                const details = interpolator.getFullDetails();
+                
+                // Obtener puntos de evaluación
+                const evalInput = document.getElementById('evalPoints').value.trim();
+                let evaluations = [];
+                
+                if (evalInput) {
+                    const evalX = evalInput.split(',').map(s => parseFloat(s.trim())).filter(x => !isNaN(x));
+                    evaluations = interpolator.evaluateMultiple(evalX);
+                }
+                
+                // Mostrar resultados
+                displayResults(points, details, evaluations, interpolator);
+                
+            } catch (e) {
+                UI.showAlert("Error al calcular: " + e.message, "error");
+                console.error(e);
+            }
+        }
+
+        function displayResults(points, details, evaluations, interpolator) {
+            let html = `<div class="result-summary">
+                <h3>📊 Polinomio Interpolador de Lagrange</h3>
+                <p><strong>Grado del polinomio:</strong> ${points.length - 1}</p>
+                <p><strong>Número de puntos:</strong> ${points.length}</p>
+                <p><strong>Puntos de interpolación:</strong></p>
+                <div style="margin: 10px 0;">`;
+            
+            points.forEach((p, i) => {
+                html += `<span class="point-badge">(${MathUtils.formatNumber(p.x, 4)}, ${MathUtils.formatNumber(p.y, 4)})</span>`;
+            });
+            
+            html += `</div></div>`;
+
+            // Expresión del polinomio completo
+            html += `<div class="polynomial-display">
+                <h4 style="margin-top: 0;">🔢 Expresión del Polinomio Interpolador</h4>
+                <div>${details.simplifiedExpression}</div>
+            </div>`;
+
+            // Polinomios base de Lagrange
+            html += `<div class="result-card">
+                <h3>📐 Polinomios Base de Lagrange</h3>
+                <p>Cada polinomio base L<sub>i</sub>(x) vale 1 en x<sub>i</sub> y 0 en los demás puntos:</p>`;
+            
+            details.basisPolynomials.forEach((basis, i) => {
+                html += `<div class="basis-polynomial">
+                    <strong>${basis.expression}</strong><br>
+                    <span style="color: var(--text-secondary);">Coeficiente: y${i} = ${MathUtils.formatNumber(basis.coefficient, 6)}</span>
+                </div>`;
+            });
+            
+            html += `</div>`;
+
+            // Tabla de verificación
+            html += `<div class="result-card">
+                <h3>✅ Verificación en los Puntos de Interpolación</h3>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Punto</th>
+                                <th>x<sub>i</sub></th>
+                                <th>y<sub>i</sub> (dado)</th>
+                                <th>P(x<sub>i</sub>) (calculado)</th>
+                                <th>Error Absoluto</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+            
+            points.forEach((p, i) => {
+                const calculated = interpolator.evaluate(p.x);
+                const error = Math.abs(p.y - calculated);
+                html += `<tr>
+                    <td>${i + 1}</td>
+                    <td>${MathUtils.formatNumber(p.x, 6)}</td>
+                    <td>${MathUtils.formatNumber(p.y, 6)}</td>
+                    <td>${MathUtils.formatNumber(calculated, 6)}</td>
+                    <td>${error.toExponential(2)}</td>
+                </tr>`;
+            });
+            
+            html += `</tbody></table></div></div>`;
+
+            // Evaluaciones solicitadas
+            if (evaluations.length > 0) {
+                html += `<div class="evaluation-section">
+                    <h3>🎯 Evaluaciones del Polinomio</h3>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>x</th>
+                                    <th>P(x)</th>
+                                </tr>
+                            </thead>
+                            <tbody>`;
+                
+                evaluations.forEach(eval => {
+                    html += `<tr>
+                        <td>${MathUtils.formatNumber(eval.x, 6)}</td>
+                        <td>${MathUtils.formatNumber(eval.y, 6)}</td>
+                    </tr>`;
+                });
+                
+                html += `</tbody></table></div></div>`;
+            }
+
+            // Fórmula general
+            html += `<div class="result-card">
+                <h3>📚 Fórmula General de Lagrange</h3>
+                <div class="polynomial-display" style="background: linear-gradient(135deg, #2c3e50, #34495e);">
+                    <p style="margin: 0;">P(x) = Σ<sub>i=0</sub><sup>n</sup> y<sub>i</sub> · L<sub>i</sub>(x)</p>
+                    <p style="margin: 10px 0 0 0; font-size: 0.9rem;">donde</p>
+                    <p style="margin: 5px 0 0 0;">L<sub>i</sub>(x) = Π<sub>j=0, j≠i</sub><sup>n</sup> (x - x<sub>j</sub>) / (x<sub>i</sub> - x<sub>j</sub>)</p>
+                </div>
+            </div>`;
+
+            document.getElementById("resultado-contenido").innerHTML = html;
+            document.getElementById("resultado").style.display = "block";
+            
+            UI.showAlert("Interpolación de Lagrange calculada exitosamente.", "success");
+        }
+
+        // Inicializar al cargar
+        window.addEventListener('DOMContentLoaded', function() {
+            initializePoints();
+            
+            FormValidation.setupFunctionValidation('sourceFunction');
+            FormValidation.setupNumericValidation('xStart', { required: true });
+            FormValidation.setupNumericValidation('xEnd', { required: true });
+            FormValidation.setupNumericValidation('numPoints', { min: 2, max: 20, required: true });
+        });
+    </script>
+</body>
+</html>

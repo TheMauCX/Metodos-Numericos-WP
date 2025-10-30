@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Factorización LU</title>
+  <link rel="stylesheet" href="../assets/css/styles.css"/>
+</head>
+<body>
+  <div class="container">
+    <a href="../index.html" class="back-button">← Volver al inicio</a>
+
+    <div class="page-container">
+      <h2 class="page-title">🏗️ Factorización LU</h2>
+      <p style="text-align:center; margin-bottom:20px; color:var(--text-secondary);">Descomposición PA = LU con pivoteo parcial</p>
+
+      <div class="form-section">
+        <h3 class="section-title">Dimensiones del sistema</h3>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="size">Tamaño de la matriz (n×n)</label>
+            <select id="size" onchange="updateMatrix()">
+              <option value="2">2×2</option>
+              <option value="3">3×3</option>
+              <option value="4" selected>4×4</option>
+              <option value="5">5×5</option>
+              <option value="6">6×6</option>
+            </select>
+            <p class="input-help">⚠️ La factorización LU requiere matriz cuadrada</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h3 class="section-title">Matriz aumentada [A | b]</h3>
+        <div id="matrixInput" class="form-group"></div>
+        <button class="btn btn-primary btn-block" onclick="solve()">Resolver Sistema</button>
+      </div>
+
+      <div class="results-section" id="results"></div>
+    </div>
+
+    <footer class="footer">
+      &copy; 2024 Métodos Numéricos - Herramientas de Análisis Matemático
+    </footer>
+  </div>
+
+  <script>
+    function updateMatrix() {
+      const n = parseInt(document.getElementById('size').value);
+      const container = document.getElementById('matrixInput');
+
+      let html = '';
+      for (let i = 0; i < n; i++) {
+        html += '<div class="form-row" style="align-items:center;">';
+        for (let j = 0; j < n; j++) {
+          html += `
+          <div class="form-group">
+            <label>a${i+1}${j+1}</label>
+            <input type="number" step="any" id="a${i}${j}" value="${i===j?1:0}">
+          </div>`;
+        }
+        html += `
+        <div class="form-group" style="max-width:110px;">
+          <label>b${i+1}</label>
+          <input type="number" step="any" id="b${i}" value="0">
+        </div>`;
+        html += '</div>';
+      }
+      container.innerHTML = html;
+
+      if (n === 4) {
+        document.getElementById('a00').value = 1;
+        document.getElementById('a01').value = 4;
+        document.getElementById('a02').value = -1;
+        document.getElementById('a03').value = 1;
+        document.getElementById('b0').value  = 2;
+
+        document.getElementById('a10').value = 2;
+        document.getElementById('a11').value = 7;
+        document.getElementById('a12').value = 1;
+        document.getElementById('a13').value = -2;
+        document.getElementById('b1').value  = 16;
+
+        document.getElementById('a20').value = 1;
+        document.getElementById('a21').value = 4;
+        document.getElementById('a22').value = -1;
+        document.getElementById('a23').value = 2;
+        document.getElementById('b2').value  = 1;
+
+        document.getElementById('a30').value = 3;
+        document.getElementById('a31').value = -10;
+        document.getElementById('a32').value = -2;
+        document.getElementById('a33').value = 5;
+        document.getElementById('b3').value  = -15;
+      }
+    }
+
+    function getMatrix() {
+      const n = parseInt(document.getElementById('size').value);
+      const A = [];
+      const b = [];
+      
+      for (let i = 0; i < n; i++) {
+        const row = [];
+        for (let j = 0; j < n; j++) {
+          row.push(parseFloat(document.getElementById(`a${i}${j}`).value) || 0);
+        }
+        A.push(row);
+        b.push(parseFloat(document.getElementById(`b${i}`).value) || 0);
+      }
+      
+      return { A, b, n };
+    }
+
+    function displayMatrix(matrix, title = "") {
+      let html = '<div class="result-card">';
+      if (title) html += `<h3 style="color:var(--primary-color); margin-bottom:10px;">${title}</h3>`;
+      html += '<div class="table-container"><pre style="padding:16px; margin:0; font-family: monospace;">';
+
+      for (let i = 0; i < matrix.length; i++) {
+        html += i === 0 ? '┌ ' : (i === matrix.length - 1 ? '└ ' : '│ ');
+        for (let j = 0; j < matrix[i].length; j++) {
+          const val = (Number.isFinite(matrix[i][j]) ? matrix[i][j] : 0).toFixed(4);
+          html += val.padStart(10);
+        }
+        html += i === 0 ? ' ┐\n' : (i === matrix.length - 1 ? ' ┘\n' : ' │\n');
+      }
+      html += '</pre></div></div>';
+      return html;
+    }
+
+    function displayAugmentedMatrix(A, b, title = "") {
+      let html = '<div class="result-card">';
+      if (title) html += `<h3 style="color:var(--primary-color); margin-bottom:10px;">${title}</h3>`;
+      html += '<div class="table-container"><pre style="padding:16px; margin:0; font-family: monospace;">';
+
+      const n = A.length;
+      for (let i = 0; i < n; i++) {
+        html += i === 0 ? '┌ ' : (i === n - 1 ? '└ ' : '│ ');
+        for (let j = 0; j < n; j++) {
+          html += A[i][j].toFixed(2).padStart(8);
+        }
+        html += ' |' + b[i].toFixed(2).padStart(8);
+        html += i === 0 ? ' ┐\n' : (i === n - 1 ? ' ┘\n' : ' │\n');
+      }
+      html += '</pre></div></div>';
+      return html;
+    }
+
+    function luDecomposition(originalA, originalB) {
+      const n = originalA.length;
+      let html = '';
+
+      // Copiar matrices
+      const A = originalA.map(row => [...row]);
+      const b = [...originalB];
+
+      html += displayAugmentedMatrix(A, b, "Matriz Aumentada Inicial [A | b]");
+
+      // Inicializar L, U y vector de permutación
+      const L = Array(n).fill(0).map(() => Array(n).fill(0));
+      const U = A.map(row => [...row]);
+      const P = Array(n).fill(0).map((_, i) => i); // Vector de permutación
+
+      for (let i = 0; i < n; i++) {
+        L[i][i] = 1;
+      }
+
+      html += '<div class="result-card"><h3 style="color:var(--primary-color);">DESCOMPOSICIÓN LU CON PIVOTEO PARCIAL</h3><p class="input-help">PA = LU, donde P es la matriz de permutación</p></div>';
+
+      // Eliminación gaussiana con pivoteo parcial
+      for (let k = 0; k < n - 1; k++) {
+        // Buscar el pivote máximo
+        let maxRow = k;
+        let maxVal = Math.abs(U[k][k]);
+        
+        for (let i = k + 1; i < n; i++) {
+          if (Math.abs(U[i][k]) > maxVal) {
+            maxVal = Math.abs(U[i][k]);
+            maxRow = i;
+          }
+        }
+
+        // Intercambiar filas si es necesario
+        if (maxRow !== k) {
+          [U[k], U[maxRow]] = [U[maxRow], U[k]];
+          [b[k], b[maxRow]] = [b[maxRow], b[k]];
+          [P[k], P[maxRow]] = [P[maxRow], P[k]];
+          
+          // Intercambiar elementos ya calculados de L
+          for (let j = 0; j < k; j++) {
+            [L[k][j], L[maxRow][j]] = [L[maxRow][j], L[k][j]];
+          }
+          
+          html += `<div class="alert alert-info"><strong>Intercambio de filas ${k+1} ↔ ${maxRow+1} (pivoteo)</strong></div>`;
+        }
+
+        // Eliminación
+        for (let i = k + 1; i < n; i++) {
+          if (Math.abs(U[k][k]) > 1e-10) {
+            const factor = U[i][k] / U[k][k];
+            L[i][k] = factor;
+            
+            for (let j = k; j < n; j++) {
+              U[i][j] -= factor * U[k][j];
+            }
+          }
+        }
+      }
+
+      html += displayMatrix(L, "Matriz L (Triangular Inferior)");
+      html += displayMatrix(U, "Matriz U (Triangular Superior)");
+
+      // Resolver Ly = Pb (sustitución hacia adelante)
+      html += '<div class="result-card"><h3 style="color:var(--primary-color);">Paso 1: Resolver Ly = Pb (Sustitución hacia adelante)</h3>';
+      const y = new Array(n).fill(0);
+      for (let i = 0; i < n; i++) {
+        let sum = 0;
+        for (let j = 0; j < i; j++) {
+          sum += L[i][j] * y[j];
+        }
+        y[i] = b[i] - sum;
+        html += `<div class="alert alert-info"><strong>y${i + 1} = ${y[i].toFixed(6)}</strong></div>`;
+      }
+      html += '</div>';
+
+      // Resolver Ux = y (sustitución hacia atrás)
+      html += '<div class="result-card"><h3 style="color:var(--primary-color);">Paso 2: Resolver Ux = y (Sustitución hacia atrás)</h3>';
+      const x = new Array(n).fill(0);
+      for (let i = n - 1; i >= 0; i--) {
+        let sum = 0;
+        for (let j = i + 1; j < n; j++) {
+          sum += U[i][j] * x[j];
+        }
+        if (Math.abs(U[i][i]) > 1e-10) {
+          x[i] = (y[i] - sum) / U[i][i];
+          html += `<div class="alert alert-success"><strong>x${i + 1} = ${x[i].toFixed(6)}</strong></div>`;
+        } else {
+          x[i] = 0;
+          html += `<div class="alert alert-warning"><strong>⚠️ x${i + 1} = 0 (pivote cercano a cero)</strong></div>`;
+        }
+      }
+      html += '</div>';
+
+      return { solution: x, html };
+    }
+
+    function solve() {
+      const { A, b, n } = getMatrix();
+      const resultsDiv = document.getElementById('results');
+      let html = '';
+
+      const { solution, html: stepsHtml } = luDecomposition(A, b);
+      html += stepsHtml;
+
+      html += '<div class="result-summary"><strong>✅ SOLUCIÓN FINAL</strong></div>';
+      html += '<div class="result-card">';
+      for (let i = 0; i < solution.length; i++) {
+        html += `<p><strong>x${i + 1} =</strong> ${Number(solution[i]).toFixed(6)}</p>`;
+      }
+      html += '</div>';
+
+      resultsDiv.innerHTML = html;
+      resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    updateMatrix();
+  </script>
+</body>
+</html>
