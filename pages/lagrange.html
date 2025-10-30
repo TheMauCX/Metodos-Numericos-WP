@@ -24,6 +24,18 @@
             line-height: 1.8;
             overflow-x: auto;
         }
+        .simplified-polynomial {
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+            color: white;
+            padding: 25px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 1.2rem;
+            line-height: 2;
+            overflow-x: auto;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
         .lagrange-term {
             display: block;
             margin: 10px 0;
@@ -44,13 +56,6 @@
             padding: 20px;
             margin: 20px 0;
         }
-        .chart-container {
-            margin: 20px 0;
-            padding: 20px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: var(--shadow);
-        }
         .point-badge {
             display: inline-block;
             background: var(--secondary-color);
@@ -64,6 +69,15 @@
             padding: 8px 12px;
             font-size: 0.85rem;
             min-width: auto;
+        }
+        .coefficient-badge {
+            background: #ffeaa7;
+            color: #2d3436;
+            padding: 3px 8px;
+            border-radius: 5px;
+            font-weight: bold;
+            display: inline-block;
+            margin: 2px;
         }
     </style>
 </head>
@@ -343,6 +357,58 @@
                 return result;
             }
 
+            // 🔹 NUEVO: Calcular coeficientes del polinomio expandido
+            calculateExpandedPolynomial() {
+                const n = this.n;
+                const coefficients = new Array(n).fill(0);
+                
+                // Para cada punto (xi, yi)
+                for (let i = 0; i < n; i++) {
+                    const yi = this.points[i].y;
+                    const xi = this.points[i].x;
+                    
+                    // Calcular el denominador de Li(x)
+                    let denominator = 1;
+                    for (let j = 0; j < n; j++) {
+                        if (i !== j) {
+                            denominator *= (xi - this.points[j].x);
+                        }
+                    }
+                    
+                    // Calcular los coeficientes del numerador de Li(x)
+                    // Producto de (x - xj) para j != i
+                    let numeratorCoeffs = [1]; // Comienza con el polinomio constante 1
+                    
+                    for (let j = 0; j < n; j++) {
+                        if (i !== j) {
+                            const xj = this.points[j].x;
+                            // Multiplicar por (x - xj)
+                            numeratorCoeffs = this.multiplyPolynomial(numeratorCoeffs, [-xj, 1]);
+                        }
+                    }
+                    
+                    // Sumar yi * Li(x) al polinomio total
+                    for (let k = 0; k < numeratorCoeffs.length; k++) {
+                        coefficients[k] += (yi * numeratorCoeffs[k]) / denominator;
+                    }
+                }
+                
+                return coefficients;
+            }
+
+            // Multiplicar dos polinomios representados como arrays de coeficientes
+            multiplyPolynomial(p1, p2) {
+                const result = new Array(p1.length + p2.length - 1).fill(0);
+                
+                for (let i = 0; i < p1.length; i++) {
+                    for (let j = 0; j < p2.length; j++) {
+                        result[i + j] += p1[i] * p2[j];
+                    }
+                }
+                
+                return result;
+            }
+
             // Generar expresión simbólica del polinomio base L_i(x)
             getBasisPolynomialExpression(i) {
                 const xi = this.points[i].x;
@@ -379,7 +445,8 @@
             getFullDetails() {
                 const details = {
                     basisPolynomials: [],
-                    simplifiedExpression: this.getSimplifiedExpression()
+                    simplifiedExpression: this.getSimplifiedExpression(),
+                    expandedCoefficients: this.calculateExpandedPolynomial()
                 };
                 
                 for (let i = 0; i < this.n; i++) {
@@ -402,6 +469,50 @@
                 
                 expression += terms.join(" + ");
                 return expression;
+            }
+
+            // 🔹 NUEVO: Generar expresión del polinomio expandido
+            getExpandedPolynomialString() {
+                const coeffs = this.calculateExpandedPolynomial();
+                let terms = [];
+                
+                for (let i = coeffs.length - 1; i >= 0; i--) {
+                    const coeff = coeffs[i];
+                    
+                    if (Math.abs(coeff) < 1e-10) continue; // Saltar términos casi cero
+                    
+                    let term = '';
+                    const absCoeff = Math.abs(coeff);
+                    const sign = coeff >= 0 ? '+' : '-';
+                    
+                    if (i === 0) {
+                        // Término constante
+                        term = `${sign} ${absCoeff.toFixed(6)}`;
+                    } else if (i === 1) {
+                        // Término lineal
+                        if (absCoeff === 1) {
+                            term = `${sign} x`;
+                        } else {
+                            term = `${sign} ${absCoeff.toFixed(6)}x`;
+                        }
+                    } else {
+                        // Términos de mayor grado
+                        if (absCoeff === 1) {
+                            term = `${sign} x^${i}`;
+                        } else {
+                            term = `${sign} ${absCoeff.toFixed(6)}x^${i}`;
+                        }
+                    }
+                    
+                    terms.push(term);
+                }
+                
+                let result = 'P(x) = ' + terms.join(' ').trim();
+                if (result.startsWith('P(x) = +')) {
+                    result = result.replace('P(x) = +', 'P(x) = ');
+                }
+                
+                return result;
             }
 
             // Evaluar múltiples puntos
@@ -470,9 +581,28 @@
             
             html += `</div></div>`;
 
-            // Expresión del polinomio completo
+            // 🔹 POLINOMIO EXPANDIDO Y SIMPLIFICADO
+            html += `<div class="simplified-polynomial">
+                <h4 style="margin-top: 0; font-size: 1.3rem;">🎯 POLINOMIO SIMPLIFICADO (Forma Expandida)</h4>
+                <div style="font-size: 1.1rem; margin-top: 15px;">${interpolator.getExpandedPolynomialString()}</div>
+            </div>`;
+
+            // Mostrar coeficientes individuales
+            html += `<div class="result-card">
+                <h3>📐 Coeficientes del Polinomio</h3>
+                <p>El polinomio P(x) = a₀ + a₁x + a₂x² + ... + aₙxⁿ tiene los siguientes coeficientes:</p>
+                <div style="margin: 15px 0;">`;
+            
+            const coeffs = details.expandedCoefficients;
+            for (let i = 0; i < coeffs.length; i++) {
+                html += `<span class="coefficient-badge">a${i} = ${coeffs[i].toFixed(8)}</span>`;
+            }
+            
+            html += `</div></div>`;
+
+            // Expresión con L(x) factorizado (forma tradicional)
             html += `<div class="polynomial-display">
-                <h4 style="margin-top: 0;">🔢 Expresión del Polinomio Interpolador</h4>
+                <h4 style="margin-top: 0;">🔢 Expresión con Polinomios Base (Forma Factorizada)</h4>
                 <div>${details.simplifiedExpression}</div>
             </div>`;
 

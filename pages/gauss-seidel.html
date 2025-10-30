@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Método de Gauss-Seidel</title>
+  <link rel="stylesheet" href="../assets/css/styles.css"/>
+  <style>
+    .iteration-table {
+      font-size: 0.85rem;
+      margin: 20px 0;
+    }
+    .iteration-table th, .iteration-table td {
+      padding: 8px 6px;
+      min-width: 80px;
+    }
+    .converged-row {
+      background-color: #d4edda !important;
+      font-weight: bold;
+    }
+    .vector-display {
+      background: linear-gradient(135deg, #11998e, #38ef7d);
+      color: white;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 15px 0;
+      font-family: 'Courier New', monospace;
+    }
+    .formula-card {
+      background: #f8f9fa;
+      border-left: 4px solid #11998e;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 15px 0;
+    }
+    .warning-box {
+      background: #fff3cd;
+      border: 2px solid #ffc107;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 15px 0;
+    }
+    .comparison-box {
+      background: linear-gradient(135deg, #e0f7fa, #b2ebf2);
+      border: 2px solid #00acc1;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 15px 0;
+    }
+    .update-highlight {
+      background-color: #b3e5fc !important;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="../index.html" class="back-button">← Volver al inicio</a>
+
+    <div class="page-container">
+      <h2 class="page-title">⚡ Método Iterativo de Gauss-Seidel</h2>
+      <p style="text-align:center; margin-bottom:20px; color:var(--text-secondary);">Resolución iterativa de sistemas lineales (actualización sucesiva)</p>
+
+      <div class="comparison-box">
+        <h4>🔄 Gauss-Seidel vs Jacobi</h4>
+        <p><strong>Gauss-Seidel:</strong> Usa los valores <strong>recién calculados</strong> inmediatamente (converge más rápido)</p>
+        <p><strong>Jacobi:</strong> Usa solo valores de la iteración anterior (actualización simultánea)</p>
+        <p style="margin-top:10px;">✨ Gauss-Seidel generalmente converge en <strong>menos iteraciones</strong> que Jacobi.</p>
+      </div>
+
+      <div class="warning-box">
+        <strong>⚠️ Requisito importante:</strong> Para garantizar convergencia, la matriz debe ser:
+        <ul>
+          <li>Diagonal dominante estricta: |a<sub>ii</sub>| > Σ|a<sub>ij</sub>| para todo i</li>
+          <li>Definida positiva (para matrices simétricas)</li>
+          <li>O cumplir el criterio de Sassenfeld</li>
+        </ul>
+      </div>
+
+      <!-- Configuración de tamaño -->
+      <div class="form-section">
+        <h3 class="section-title">Dimensiones del sistema</h3>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="size">Tamaño de la matriz (n×n)</label>
+            <select id="size" onchange="updateMatrix()">
+              <option value="2">2×2</option>
+              <option value="3" selected>3×3</option>
+              <option value="4">4×4</option>
+              <option value="5">5×5</option>
+              <option value="6">6×6</option>
+            </select>
+            <p class="input-help">⚠️ El método de Gauss-Seidel requiere matriz cuadrada</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ingreso de matriz -->
+      <div class="form-section">
+        <h3 class="section-title">Matriz aumentada [A | b]</h3>
+        <div id="matrixInput" class="form-group"></div>
+      </div>
+
+      <!-- Parámetros de iteración -->
+      <div class="form-section">
+        <h3 class="section-title">Parámetros de convergencia</h3>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label for="tolerance">Tolerancia (error):</label>
+            <input type="number" id="tolerance" step="any" value="0.0001" min="0">
+            <p class="input-help">Error máximo permitido: e = |x<sub>k+1</sub> - x<sub>k</sub>|</p>
+          </div>
+          
+          <div class="form-group">
+            <label for="maxIterations">Iteraciones máximas:</label>
+            <input type="number" id="maxIterations" min="1" value="100">
+            <p class="input-help">Límite de iteraciones si no converge</p>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="initialGuess">Vector inicial (opcional, separado por comas):</label>
+          <input type="text" id="initialGuess" placeholder="Ejemplo: 0, 0, 0 (dejar vacío para usar ceros)">
+          <p class="input-help">Aproximación inicial x<sup>(0)</sup>. Si está vacío, se usa vector cero</p>
+        </div>
+
+        <button class="btn btn-success btn-block" onclick="solve()">⚡ Resolver con Gauss-Seidel</button>
+      </div>
+
+      <!-- Resultados -->
+      <div class="results-section" id="results"></div>
+    </div>
+
+    <footer class="footer">
+      &copy; 2024 Métodos Numéricos - Herramientas de Análisis Matemático
+    </footer>
+  </div>
+
+  <script>
+    function updateMatrix() {
+      const n = parseInt(document.getElementById('size').value);
+      const container = document.getElementById('matrixInput');
+
+      let html = '';
+      for (let i = 0; i < n; i++) {
+        html += '<div class="form-row" style="align-items:center;">';
+        for (let j = 0; j < n; j++) {
+          html += `
+          <div class="form-group">
+            <label>a${i+1}${j+1}</label>
+            <input type="number" step="any" id="a${i}${j}" value="${i===j?4:1}">
+          </div>`;
+        }
+        html += `
+        <div class="form-group" style="max-width:110px;">
+          <label>b${i+1}</label>
+          <input type="number" step="any" id="b${i}" value="${i+1}">
+        </div>`;
+        html += '</div>';
+      }
+      container.innerHTML = html;
+
+      // Ejemplo por defecto para 3x3 (mismo que Jacobi para comparación)
+      if (n === 3) {
+        document.getElementById('a00').value = 10;
+        document.getElementById('a01').value = -1;
+        document.getElementById('a02').value = 2;
+        document.getElementById('b0').value  = 6;
+
+        document.getElementById('a10').value = -1;
+        document.getElementById('a11').value = 11;
+        document.getElementById('a12').value = -1;
+        document.getElementById('b1').value  = 25;
+
+        document.getElementById('a20').value = 2;
+        document.getElementById('a21').value = -1;
+        document.getElementById('a22').value = 10;
+        document.getElementById('b2').value  = -11;
+      }
+    }
+
+    function getMatrix() {
+      const n = parseInt(document.getElementById('size').value);
+      const A = [];
+      const b = [];
+      
+      for (let i = 0; i < n; i++) {
+        const row = [];
+        for (let j = 0; j < n; j++) {
+          row.push(parseFloat(document.getElementById(`a${i}${j}`).value) || 0);
+        }
+        A.push(row);
+        b.push(parseFloat(document.getElementById(`b${i}`).value) || 0);
+      }
+      
+      return { A, b, n };
+    }
+
+    function getInitialGuess(n) {
+      const input = document.getElementById('initialGuess').value.trim();
+      
+      if (!input) {
+        return new Array(n).fill(0);
+      }
+      
+      const values = input.split(',').map(s => parseFloat(s.trim()));
+      
+      if (values.length !== n || values.some(isNaN)) {
+        throw new Error(`El vector inicial debe tener exactamente ${n} valores numéricos.`);
+      }
+      
+      return values;
+    }
+
+    function displayVector(vector, title = "") {
+      let html = '<div class="vector-display">';
+      if (title) html += `<strong>${title}</strong><br>`;
+      html += 'x = [' + vector.map(v => v.toFixed(8)).join(', ') + ']';
+      html += '</div>';
+      return html;
+    }
+
+    function displayAugmentedMatrix(A, b, title = "") {
+      let html = '<div class="result-card">';
+      if (title) html += `<h3 style="color:var(--primary-color); margin-bottom:10px;">${title}</h3>`;
+      html += '<div class="table-container"><pre style="padding:16px; margin:0; font-family: monospace;">';
+
+      const n = A.length;
+      for (let i = 0; i < n; i++) {
+        html += i === 0 ? '┌ ' : (i === n - 1 ? '└ ' : '│ ');
+        for (let j = 0; j < n; j++) {
+          html += A[i][j].toFixed(2).padStart(8);
+        }
+        html += ' |' + b[i].toFixed(2).padStart(8);
+        html += i === 0 ? ' ┐\n' : (i === n - 1 ? ' ┘\n' : ' │\n');
+      }
+      html += '</pre></div></div>';
+      return html;
+    }
+
+    function checkDiagonalDominance(A) {
+      const n = A.length;
+      let strict = true;
+      let weak = true;
+      
+      for (let i = 0; i < n; i++) {
+        let sum = 0;
+        for (let j = 0; j < n; j++) {
+          if (i !== j) {
+            sum += Math.abs(A[i][j]);
+          }
+        }
+        
+        const diagonal = Math.abs(A[i][i]);
+        
+        if (diagonal < sum) {
+          strict = false;
+          weak = false;
+          break;
+        } else if (diagonal === sum) {
+          strict = false;
+        }
+      }
+      
+      return { strict, weak };
+    }
+
+    function calculateSassenfeld(A) {
+      const n = A.length;
+      const beta = new Array(n);
+      
+      for (let i = 0; i < n; i++) {
+        if (Math.abs(A[i][i]) < 1e-10) {
+          return { valid: false, beta: null, converges: false };
+        }
+        
+        let sum = 0;
+        
+        // Suma de términos antes de la diagonal (con beta ya calculados)
+        for (let j = 0; j < i; j++) {
+          sum += Math.abs(A[i][j]) * beta[j];
+        }
+        
+        // Suma de términos después de la diagonal
+        for (let j = i + 1; j < n; j++) {
+          sum += Math.abs(A[i][j]);
+        }
+        
+        beta[i] = sum / Math.abs(A[i][i]);
+      }
+      
+      const maxBeta = Math.max(...beta);
+      
+      return {
+        valid: true,
+        beta: beta,
+        converges: maxBeta < 1,
+        maxBeta: maxBeta
+      };
+    }
+
+    function calculateError(xNew, xOld) {
+      // Calcular error como e = |x_{k+1} - x_k| para cada componente
+      const errors = [];
+      for (let i = 0; i < xNew.length; i++) {
+        errors.push(Math.abs(xNew[i] - xOld[i]));
+      }
+      // Retornar el error máximo (norma infinito)
+      return Math.max(...errors);
+    }
+
+    function gaussSeidelMethod(A, b, x0, tolerance, maxIterations) {
+      const n = A.length;
+      let x = [...x0]; // Vector que se va actualizando
+      let iterations = [];
+      
+      iterations.push({
+        iteration: 0,
+        x: [...x],
+        error: null
+      });
+      
+      for (let k = 1; k <= maxIterations; k++) {
+        let xOld = [...x]; // Guardar estado anterior para calcular error
+        
+        // Calcular cada componente xi usando valores YA ACTUALIZADOS
+        for (let i = 0; i < n; i++) {
+          if (Math.abs(A[i][i]) < 1e-10) {
+            throw new Error(`Elemento diagonal a[${i+1}][${i+1}] es cero o muy pequeño. No se puede continuar.`);
+          }
+          
+          let sum = 0;
+          
+          // CLAVE DE GAUSS-SEIDEL: Usar valores recién calculados
+          for (let j = 0; j < i; j++) {
+            sum += A[i][j] * x[j]; // Usa x[j] recién actualizado
+          }
+          
+          // Usar valores de la iteración anterior para j > i
+          for (let j = i + 1; j < n; j++) {
+            sum += A[i][j] * x[j]; // Usa x[j] de iteración anterior
+          }
+          
+          x[i] = (b[i] - sum) / A[i][i]; // Actualiza inmediatamente
+        }
+        
+        // Calcular error
+        const error = calculateError(x, xOld);
+        
+        iterations.push({
+          iteration: k,
+          x: [...x],
+          error: error
+        });
+        
+        // Verificar convergencia
+        if (error < tolerance) {
+          return {
+            converged: true,
+            solution: x,
+            iterations: iterations,
+            finalError: error
+          };
+        }
+      }
+      
+      // No convergió
+      return {
+        converged: false,
+        solution: x,
+        iterations: iterations,
+        finalError: calculateError(iterations[iterations.length - 1].x, iterations[iterations.length - 2].x)
+      };
+    }
+
+    function solve() {
+      const { A, b, n } = getMatrix();
+      const tolerance = parseFloat(document.getElementById('tolerance').value);
+      const maxIterations = parseInt(document.getElementById('maxIterations').value);
+      const resultsDiv = document.getElementById('results');
+      let html = '';
+
+      try {
+        // Validaciones
+        if (isNaN(tolerance) || tolerance <= 0) {
+          throw new Error("La tolerancia debe ser un número positivo.");
+        }
+        
+        if (isNaN(maxIterations) || maxIterations <= 0) {
+          throw new Error("El número de iteraciones debe ser un entero positivo.");
+        }
+        
+        const x0 = getInitialGuess(n);
+        
+        html += displayAugmentedMatrix(A, b, "Sistema de Ecuaciones Lineales [A | b]");
+        
+        // Verificar dominancia diagonal
+        const dominance = checkDiagonalDominance(A);
+        const sassenfeld = calculateSassenfeld(A);
+        
+        html += '<div class="result-card">';
+        html += '<h3 style="color:var(--primary-color);">📊 Análisis de Convergencia</h3>';
+        
+        // Análisis de dominancia diagonal
+        if (dominance.strict) {
+          html += '<div class="alert alert-success">✅ La matriz es <strong>estrictamente diagonal dominante</strong>. La convergencia está <strong>garantizada</strong>.</div>';
+        } else if (dominance.weak) {
+          html += '<div class="alert alert-warning">⚠️ La matriz es diagonal dominante débil. La convergencia es <strong>posible pero no garantizada</strong>.</div>';
+        } else {
+          html += '<div class="alert alert-warning">⚠️ La matriz <strong>NO es diagonal dominante</strong>. Verificando criterio de Sassenfeld...</div>';
+        }
+        
+        // Criterio de Sassenfeld
+        if (sassenfeld.valid) {
+          html += '<h4 style="margin-top:15px;">Criterio de Sassenfeld:</h4>';
+          html += '<p>Coeficientes β<sub>i</sub>: [' + sassenfeld.beta.map(b => b.toFixed(6)).join(', ') + ']</p>';
+          html += `<p><strong>max(β<sub>i</sub>) = ${sassenfeld.maxBeta.toFixed(6)}</strong></p>`;
+          
+          if (sassenfeld.converges) {
+            html += '<div class="alert alert-success">✅ Criterio de Sassenfeld: <strong>max(β) < 1</strong>. La convergencia está garantizada.</div>';
+          } else {
+            html += '<div class="alert alert-warning">⚠️ Criterio de Sassenfeld: <strong>max(β) ≥ 1</strong>. La convergencia no está garantizada.</div>';
+          }
+        }
+        
+        html += '</div>';
+        
+        // Mostrar vector inicial
+        html += displayVector(x0, "Vector inicial x⁽⁰⁾:");
+        
+        // Ejecutar método de Gauss-Seidel
+        const result = gaussSeidelMethod(A, b, x0, tolerance, maxIterations);
+        
+        // Fórmula del método
+        html += '<div class="formula-card">';
+        html += '<h4>⚡ Fórmula del Método de Gauss-Seidel</h4>';
+        html += '<p>Para cada componente i:</p>';
+        html += '<div style="font-family: monospace; font-size: 1.1rem; margin: 10px 0;">';
+        html += 'x<sub>i</sub><sup>(k+1)</sup> = (b<sub>i</sub> - Σ<sub>j<i</sub> a<sub>ij</sub>·x<sub>j</sub><sup>(k+1)</sup> - Σ<sub>j>i</sub> a<sub>ij</sub>·x<sub>j</sub><sup>(k)</sup>) / a<sub>ii</sub>';
+        html += '</div>';
+        html += '<p style="margin-top:10px;"><strong>Diferencia clave:</strong> Se usan los valores <strong>recién calculados</strong> (x<sub>j</sub><sup>(k+1)</sup>) inmediatamente cuando j < i.</p>';
+        html += '<p style="margin-top:10px;"><strong>Cálculo de error:</strong> e = max|x<sub>i</sub><sup>(k+1)</sup> - x<sub>i</sub><sup>(k)</sup>|</p>';
+        html += '</div>';
+        
+        // Tabla de iteraciones
+        html += '<div class="result-card">';
+        html += '<h3 style="color:var(--primary-color);">📈 Historial de Iteraciones</h3>';
+        html += '<div class="table-container">';
+        html += '<table class="iteration-table">';
+        html += '<thead><tr><th>Iteración</th>';
+        
+        for (let i = 0; i < n; i++) {
+          html += `<th>x${i+1}</th>`;
+        }
+        html += '<th>Error</th></tr></thead><tbody>';
+        
+        result.iterations.forEach(iter => {
+          const rowClass = (result.converged && iter.iteration === result.iterations.length - 1) ? 'converged-row' : '';
+          html += `<tr class="${rowClass}">`;
+          html += `<td><strong>${iter.iteration}</strong></td>`;
+          
+          iter.x.forEach(xi => {
+            html += `<td>${xi.toFixed(8)}</td>`;
+          });
+          
+          html += `<td>${iter.error === null ? '-' : iter.error.toExponential(4)}</td>`;
+          html += '</tr>';
+        });
+        
+        html += '</tbody></table></div></div>';
+        
+        // Resultado final
+        html += '<div class="result-summary">';
+        if (result.converged) {
+          html += '<h3>✅ CONVERGENCIA ALCANZADA</h3>';
+          html += `<p><strong>Iteraciones necesarias:</strong> ${result.iterations.length - 1}</p>`;
+          html += `<p><strong>Error final:</strong> ${result.finalError.toExponential(8)}</p>`;
+          html += '<p style="color: var(--success-color);">⚡ Gauss-Seidel generalmente converge más rápido que Jacobi.</p>';
+        } else {
+          html += '<h3>⚠️ NO CONVERGIÓ</h3>';
+          html += `<p><strong>Iteraciones realizadas:</strong> ${maxIterations}</p>`;
+          html += `<p><strong>Error final:</strong> ${result.finalError.toExponential(8)}</p>`;
+          html += '<p style="color: var(--warning-color);">El método alcanzó el máximo de iteraciones sin converger. Intente con más iteraciones o verifique los criterios de convergencia.</p>';
+        }
+        html += '</div>';
+        
+        // Solución final
+        html += displayVector(result.solution, "Solución aproximada x:");
+        
+        // Verificación
+        html += '<div class="result-card">';
+        html += '<h3>✅ Verificación: Ax = b</h3>';
+        html += '<div class="table-container">';
+        html += '<table><thead><tr><th>Ecuación</th><th>Ax (calculado)</th><th>b (esperado)</th><th>Error</th></tr></thead><tbody>';
+        
+        for (let i = 0; i < n; i++) {
+          let sum = 0;
+          for (let j = 0; j < n; j++) {
+            sum += A[i][j] * result.solution[j];
+          }
+          const error = Math.abs(sum - b[i]);
+          html += `<tr>`;
+          html += `<td>Ecuación ${i+1}</td>`;
+          html += `<td>${sum.toFixed(8)}</td>`;
+          html += `<td>${b[i].toFixed(8)}</td>`;
+          html += `<td>${error.toExponential(4)}</td>`;
+          html += `</tr>`;
+        }
+        
+        html += '</tbody></table></div></div>';
+        
+        resultsDiv.innerHTML = html;
+        resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        
+      } catch (e) {
+        html = `<div class="alert alert-error"><strong>Error:</strong> ${e.message}</div>`;
+        resultsDiv.innerHTML = html;
+      }
+    }
+
+    updateMatrix();
+  </script>
+</body>
+</html>
