@@ -12,7 +12,7 @@
 
     <div class="page-container">
       <h2 class="page-title">➗ Método de Gauss</h2>
-      <p style="text-align:center; margin-bottom:20px; color:var(--text-secondary);">Eliminación gaussiana con sustitución hacia atrás</p>
+      <p style="text-align:center; margin-bottom:20px; color:var(--text-secondary);">Eliminación gaussiana con pivoteo parcial y sustitución hacia atrás</p>
 
       <!-- Configuración de tamaño -->
       <div class="form-section">
@@ -137,11 +137,11 @@
       for (let i = 0; i < matrix.length; i++) {
         html += i === 0 ? '┌ ' : (i === matrix.length - 1 ? '└ ' : '│ ');
         for (let j = 0; j < matrix[i].length; j++) {
-          const val = (Number.isFinite(matrix[i][j]) ? matrix[i][j] : 0).toFixed(2).replace(/\.00$/, '');
+          const val = (Number.isFinite(matrix[i][j]) ? matrix[i][j] : 0).toFixed(4).replace(/\.0000$/, '');
           if (j === matrix[i].length - 1) {
-            html += ' | ' + val.toString().padStart(maxLength + 3);
+            html += ' | ' + val.toString().padStart(maxLength + 5);
           } else {
-            html += val.toString().padStart(maxLength + 3);
+            html += val.toString().padStart(maxLength + 5);
           }
         }
         html += i === 0 ? ' ┐\n' : (i === matrix.length - 1 ? ' ┘\n' : ' │\n');
@@ -150,7 +150,7 @@
       return html;
     }
 
-    function gaussElimination(matrix) {
+    function gaussEliminationWithPivot(matrix) {
       const n = matrix.length;
       const m = matrix[0].length - 1;
       let html = '';
@@ -158,26 +158,44 @@
       html += displayMatrix(matrix, "Matriz Aumentada Inicial");
 
       for (let k = 0; k < Math.min(n, m); k++) {
+        // 🔹 PIVOTEO PARCIAL: Buscar el elemento máximo en la columna k
         let maxRow = k;
         for (let i = k + 1; i < n; i++) {
-          if (Math.abs(matrix[i][k]) > Math.abs(matrix[maxRow][k])) maxRow = i;
+          if (Math.abs(matrix[i][k]) > Math.abs(matrix[maxRow][k])) {
+            maxRow = i;
+          }
         }
+        
+        // Intercambiar filas si es necesario
         if (maxRow !== k) {
           [matrix[k], matrix[maxRow]] = [matrix[maxRow], matrix[k]];
-          html += displayMatrix(matrix, `Intercambio F${k+1} ↔ F${maxRow+1}`);
+          html += displayMatrix(matrix, `Intercambio F${k+1} ↔ F${maxRow+1} (Pivoteo Parcial)`);
         }
 
-        let stepHtml = '<div class="result-card"><h3 style="color:var(--primary-color);">PASO ' + (k + 1) + ': Eliminar x' + (k + 1) + '</h3>';
+        let stepHtml = '<div class="result-card"><h3 style="color:var(--primary-color);">PASO ' + (k + 1) + ': Eliminar columna x' + (k + 1) + '</h3>';
         let hasChanges = false;
 
+        // 🔹 NORMALIZACIÓN: Dividir la fila pivote para hacer el pivote = 1
+        if (Math.abs(matrix[k][k]) > 1e-10 && matrix[k][k] !== 1) {
+          const pivot = matrix[k][k];
+          stepHtml += `<div class="alert alert-info"><strong>Normalización: F${k+1} = F${k+1} / ${pivot.toFixed(6)}</strong></div>`;
+          
+          for (let j = k; j < matrix[k].length; j++) {
+            matrix[k][j] /= pivot;
+          }
+          hasChanges = true;
+        }
+
+        // 🔹 ELIMINACIÓN: Hacer ceros debajo del pivote
         for (let i = k + 1; i < n; i++) {
-          if (matrix[k][k] !== 0) {
+          if (Math.abs(matrix[k][k]) > 1e-10 && Math.abs(matrix[i][k]) > 1e-10) {
             const factor = matrix[i][k] / matrix[k][k];
-            if (factor !== 0) {
-              hasChanges = true;
-              stepHtml += `<div class="alert alert-info"><strong>F${i+1} = F${i+1} - (${factor.toFixed(4)})F${k+1}</strong></div>`;
-              for (let j = k; j < matrix[i].length; j++) matrix[i][j] -= factor * matrix[k][j];
+            stepHtml += `<div class="alert alert-info"><strong>F${i+1} = F${i+1} - (${factor.toFixed(6)}) × F${k+1}</strong></div>`;
+            
+            for (let j = k; j < matrix[i].length; j++) {
+              matrix[i][j] -= factor * matrix[k][j];
             }
+            hasChanges = true;
           }
         }
 
@@ -188,7 +206,7 @@
         }
       }
 
-      html += displayMatrix(matrix, "MATRIZ TRIANGULAR SUPERIOR FINAL");
+      html += displayMatrix(matrix, "✅ MATRIZ TRIANGULAR SUPERIOR (diagonal con 1's)");
       return { matrix, html };
     }
 
@@ -202,13 +220,19 @@
         let sum = matrix[i][m];
         let pivotCol = -1;
 
+        // Encontrar la columna pivote (primer elemento no cero)
         for (let j = 0; j < m; j++) {
-          if (matrix[i][j] !== 0) {
-            if (pivotCol === -1) pivotCol = j;
-            if (j > pivotCol) sum -= matrix[i][j] * solution[j];
+          if (Math.abs(matrix[i][j]) > 1e-10) {
+            if (pivotCol === -1) {
+              pivotCol = j;
+            }
+            if (j > pivotCol) {
+              sum -= matrix[i][j] * solution[j];
+            }
           }
         }
-        if (pivotCol !== -1 && matrix[i][pivotCol] !== 0) {
+
+        if (pivotCol !== -1 && Math.abs(matrix[i][pivotCol]) > 1e-10) {
           solution[pivotCol] = sum / matrix[i][pivotCol];
           html += `<div class="alert alert-success"><strong>De F${i+1}: x${pivotCol+1} = ${solution[pivotCol].toFixed(6)}</strong></div>`;
         }
@@ -222,23 +246,30 @@
       const resultsDiv = document.getElementById('results');
       let html = '';
 
-      const { matrix: triangular, html: stepsHtml } = gaussElimination(JSON.parse(JSON.stringify(matrix)));
-      html += stepsHtml;
-      const { solution, html: bsHtml } = backSubstitution(triangular);
-      html += bsHtml;
+      try {
+        const { matrix: triangular, html: stepsHtml } = gaussEliminationWithPivot(JSON.parse(JSON.stringify(matrix)));
+        html += stepsHtml;
+        
+        const { solution, html: bsHtml } = backSubstitution(triangular);
+        html += bsHtml;
 
-      html += '<div class="result-summary"><strong>✅ SOLUCIÓN FINAL</strong></div>';
-      html += '<div class="result-card">';
-      for (let i=0;i<solution.length;i++){
-        html += `<p><strong>x${i+1} =</strong> ${Number(solution[i]).toFixed(6)}</p>`;
+        html += '<div class="result-summary"><strong>✅ SOLUCIÓN FINAL</strong></div>';
+        html += '<div class="result-card">';
+        for (let i = 0; i < solution.length; i++) {
+          html += `<p><strong>x${i+1} =</strong> ${Number(solution[i]).toFixed(6)}</p>`;
+        }
+        html += '</div>';
+
+        resultsDiv.innerHTML = html;
+        resultsDiv.scrollIntoView({behavior:'smooth', block:'start'});
+      } catch (e) {
+        html = `<div class="alert alert-error"><strong>Error:</strong> ${e.message}</div>`;
+        resultsDiv.innerHTML = html;
       }
-      html += '</div>';
-
-      resultsDiv.innerHTML = html;
-      resultsDiv.scrollIntoView({behavior:'smooth', block:'start'});
     }
 
     updateMatrix();
   </script>
 </body>
 </html>
+
