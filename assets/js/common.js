@@ -132,6 +132,40 @@ const MathUtils = {
         return Math.abs((current - previous) / current) * 100;
     },
 
+    // --- NUEVA FUNCIÓN ---
+    jsToLatex: (funcStr) => {
+        if (!funcStr) return "";
+        
+        let latexStr = ` ${funcStr} `; // Añadir espacios para facilitar regex
+
+        // 1. Reemplazar funciones de Math
+        latexStr = latexStr.replace(/Math\.exp\((.*?)\)/g, 'e^{$1}');
+        latexStr = latexStr.replace(/Math\.sin\((.*?)\)/g, '\\sin($1)');
+        latexStr = latexStr.replace(/Math\.cos\((.*?)\)/g, '\\cos($1)');
+        latexStr = latexStr.replace(/Math\.tan\((.*?)\)/g, '\\tan($1)');
+        latexStr = latexStr.replace(/Math\.log\((.*?)\)/g, '\\ln($1)'); // Asumir log es ln
+        latexStr = latexStr.replace(/Math\.log10\((.*?)\)/g, '\\log_{10}($1)');
+        latexStr = latexStr.replace(/Math\.sqrt\((.*?)\)/g, '\\sqrt{$1}');
+        
+        // 2. Reemplazar Math.pow(base, exp)
+        latexStr = latexStr.replace(/Math\.pow\((.*?),(.*?)\)/g, '{$1}^{$2}');
+        
+        // 3. Reemplazar operador de potencia (**)
+        // (base)**exp -> (base)^{exp}
+        latexStr = latexStr.replace(/\((.*?)\)\*\*(\S+)/g, '($1)^{$2}');
+        // base**exp -> base^{exp}
+        latexStr = latexStr.replace(/(\w+)\*\*(\S+)/g, '$1^{$2}');
+
+        // 4. Reemplazar operadores
+        latexStr = latexStr.replace(/\*/g, ' \\cdot '); // Multiplicación
+        
+        // 5. Limpiar espacios
+        latexStr = latexStr.trim();
+
+        return latexStr;
+    },
+    // --- FIN DE NUEVA FUNCIÓN ---
+
     findInterval: (funcStr, searchRange = 1000, maxAttempts = 10000) => {
         let attempts = 0;
         while (attempts < maxAttempts) {

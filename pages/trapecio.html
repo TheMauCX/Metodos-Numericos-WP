@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Regla del Trapecio - Métodos Numéricos</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']]
+      }
+    };
+    </script>
+    <script id="MathJax-script" async
+      src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
+    </script>
+    
+    <link rel="stylesheet" href="../assets/css/styles.css">
+    <style>
+        #functionChart {
+            max-height: 400px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <a href="../index.html" class="back-button">← Volver al Inicio</a>
+    
+    <div class="container">
+        <div class="page-container">
+            <h1 class="page-title">Regla del Trapecio</h1>
+            <p class="subtitle">Aproxima una integral definida $I = \int_{a}^{b} f(x) \,dx$ usando la regla del trapecio compuesta.</p>
+
+            <div class="result-card" style="background-color: #f8f9fa;">
+                <h3 class="section-title" style="margin-bottom: 15px; border: none;">Fórmulas Clave</h3>
+                <p><strong>Fórmula de la Regla del Trapecio Compuesta:</strong></p>
+                <p style="text-align: center; font-size: 1.1rem; margin-top: 10px;">
+                    $$ I \approx \frac{h}{2} \left[ f(x_0) + 2 \sum_{i=1}^{n-1} f(x_i) + f(x_n) \right] $$
+                </p>
+                <p><strong>Cota de Error ($E_T$):</strong></p>
+                <p style="text-align: center; font-size: 1.1rem; margin-top: 10px;">
+                    $$ |E_T| \le \frac{M(b-a)^3}{12n^2} \quad \text{donde } M \ge |f''(x)| \text{ en } [a, b] $$
+                </p>
+                <p>Donde $h = \frac{b-a}{n}$ y $x_i = a + i \cdot h$.</p>
+            </div>
+            <div class="form-section">
+                <h2 class="section-title">Parámetros de Entrada</h2>
+                
+                <div class="form-group">
+                    <label for="funcion">Función $f(x)$:</label>
+                    <input type="text" id="funcion" value="Math.exp(-x**2)" placeholder="Ejemplo: x**2, Math.sin(x)">
+                    <div class="input-help">Use notación JavaScript: x**2, Math.sin(x), Math.cos(x), Math.exp(x), etc.</div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="limiteA">Límite inferior ($a$):</label>
+                        <input type="number" id="limiteA" step="any" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="limiteB">Límite superior ($b$):</label>
+                        <input type="number" id="limiteB" step="any" value="1">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="intervalos">Número de intervalos ($n$):</label>
+                    <input type="number" id="intervalos" value="10" min="1">
+                    <div class="input-help">Debe ser un entero positivo ($n \ge 1$).</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="valorM">Valor Máximo de $|f''(x)|$ ($M$):</label>
+                    <input type="number" id="valorM" step="any" placeholder="Opcional: para calcular el error">
+                    <div class="input-help">Ingrese el valor máximo de la 2da derivada en $[a, b]$ para estimar el error.</div>
+                </div>
+
+                <button class="btn btn-primary btn-block" onclick="calcular()">Calcular Integral</button>
+            </div>
+
+            <div id="resultado" class="results-section" style="display: none;">
+                <h2 class="section-title">Resultados</h2>
+                <div id="resultado-contenido"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../assets/js/common.js"></script>
+    <script>
+        let chartInstance = null;
+
+        function calcular() {
+            const funcion = document.getElementById("funcion").value.trim();
+            const a = parseFloat(document.getElementById("limiteA").value);
+            const b = parseFloat(document.getElementById("limiteB").value);
+            const n = parseInt(document.getElementById("intervalos").value);
+            const M = parseFloat(document.getElementById("valorM").value);
+
+            // Validaciones
+            if (!funcion) {
+                UI.showAlert("Por favor, ingrese una función válida.", "error");
+                return;
+            }
+            if (isNaN(a) || isNaN(b) || isNaN(n)) {
+                UI.showAlert("Los límites y el número de intervalos deben ser números válidos.", "error");
+                return;
+            }
+            if (b <= a) {
+                UI.showAlert("El límite superior (b) debe ser mayor que el límite inferior (a).", "error");
+                return;
+            }
+            if (n < 1 || !Number.isInteger(n)) {
+                UI.showAlert("El número de intervalos (n) debe ser un entero positivo (n ≥ 1).", "error");
+                return;
+            }
+            try {
+                if (!Validators.isValidFunction(funcion, a)) {
+                    UI.showAlert("La función no es válida o no se puede evaluar en el límite inferior. Revise la sintaxis.", "error");
+                    return;
+                }
+            } catch (e) {
+                 UI.showAlert(e.message, "error");
+                 return;
+            }
+
+            try {
+                const h = (b - a) / n;
+                let sum = 0.5 * (MathUtils.evaluateFunction(funcion, a) + MathUtils.evaluateFunction(funcion, b));
+                
+                let tableData = [];
+                
+                tableData.push({ 
+                    i: 0, 
+                    xi: a, 
+                    fxi: MathUtils.evaluateFunction(funcion, a), 
+                    termino: 'f(x₀)/2' 
+                });
+
+                for (let i = 1; i < n; i++) {
+                    const xi = a + i * h;
+                    const fxi = MathUtils.evaluateFunction(funcion, xi);
+                    sum += fxi;
+                    tableData.push({ i: i, xi: xi, fxi: fxi, termino: 'f(xᵢ)' });
+                }
+
+                tableData.push({ 
+                    i: n, 
+                    xi: b, 
+                    fxi: MathUtils.evaluateFunction(funcion, b), 
+                    termino: 'f(xₙ)/2' 
+                });
+
+                const integral = h * sum;
+
+                // Cálculo de Error
+                let errorHtml = "";
+                if (!isNaN(M)) {
+                    const errorEstimado = (M * Math.pow(b - a, 3)) / (12 * Math.pow(n, 2));
+                    errorHtml = `<p><strong>Cota de Error Máximo ($E_T$):</strong> ${MathUtils.formatNumber(errorEstimado)}</p>
+                                 <p class="input-help">Basado en $M = ${M}$</p>`;
+                }
+                
+                // --- CAMBIO AQUÍ ---
+                // Convertir la función JS a LaTeX para mostrarla
+                const funcionLatex = MathUtils.jsToLatex(funcion);
+                // --- FIN DEL CAMBIO ---
+
+                // Generar HTML de resultados
+                let html = `<div class="result-summary">
+                    <h3>📊 Resumen del Cálculo</h3>
+                    <p><strong>Función:</strong> $f(x) = ${funcionLatex}$</p>
+                    <p><strong>Intervalo:</strong> $[${a}, ${b}]$</p>
+                    <p><strong>Intervalos ($n$):</strong> ${n}</p>
+                    <p><strong>Tamaño de paso ($h$):</strong> ${MathUtils.formatNumber(h, 6)}</p>
+                    <p><strong>Resultado de la Integral ($I$):</strong> ${MathUtils.formatNumber(integral)}</p>
+                    ${errorHtml}
+                </div>`;
+
+                // Gráfico
+                html += `<div class="result-card">
+                    <h3 class="section-title">Gráfica de la Función</h3>
+                    <canvas id="functionChart"></canvas>
+                </div>`;
+
+                // Tabla de puntos
+                html += `<div class="result-card">
+                    <h3 class="section-title">Tabla de Puntos</h3>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>$i$</th>
+                                    <th>$x_i$</th>
+                                    <th>$f(x_i)$</th>
+                                </tr>
+                            </thead>
+                            <tbody>`;
+                
+                tableData.forEach(r => {
+                    html += `<tr>
+                        <td>${r.i}</td>
+                        <td>${MathUtils.formatNumber(r.xi)}</td>
+                        <td>${MathUtils.formatNumber(r.fxi)}</td>
+                    </tr>`;
+                });
+                
+                html += `</tbody></table></div></div>`;
+
+                document.getElementById("resultado-contenido").innerHTML = html;
+                document.getElementById("resultado").style.display = "block";
+
+                // Renderizar gráfico (usa la función JS original)
+                plotFunction(funcion, a, b);
+                
+                // Volver a renderizar MathJax para los nuevos elementos
+                if (window.MathJax) {
+                    MathJax.typesetPromise();
+                }
+
+                UI.showAlert("Cálculo completado exitosamente.", "success");
+
+            } catch (e) {
+                UI.showAlert(e.message, "error");
+                UI.hideResults("resultado");
+            }
+        }
+        
+        function plotFunction(funcStr, a, b) {
+            const ctx = document.getElementById('functionChart').getContext('2d');
+            const stepCount = 100; // Puntos para la gráfica
+            const h = (b - a) / stepCount;
+            let labels = [];
+            let data = [];
+
+            for (let i = 0; i <= stepCount; i++) {
+                const x = a + i * h;
+                labels.push(x.toFixed(2));
+                data.push(MathUtils.evaluateFunction(funcStr, x));
+            }
+
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: `f(x) = ${funcStr}`, // El tooltip sigue mostrando la JS
+                        data: data,
+                        borderColor: 'var(--secondary-color)',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'x' }
+                        },
+                        y: {
+                            title: { display: true, text: 'f(x)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Configuración de validación en tiempo real
+        document.addEventListener('DOMContentLoaded', function() {
+            FormValidation.setupFunctionValidation('funcion');
+            FormValidation.setupNumericValidation('limiteA');
+            FormValidation.setupNumericValidation('limiteB');
+            FormValidation.setupNumericValidation('intervalos', { min: 1, required: true });
+        });
+    </script>
+</body>
+</html>
