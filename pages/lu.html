@@ -139,9 +139,9 @@
       for (let i = 0; i < n; i++) {
         html += i === 0 ? '┌ ' : (i === n - 1 ? '└ ' : '│ ');
         for (let j = 0; j < n; j++) {
-          html += A[i][j].toFixed(2).padStart(8);
+          html += A[i][j].toFixed(4).padStart(10);
         }
-        html += ' |' + b[i].toFixed(2).padStart(8);
+        html += ' |' + b[i].toFixed(4).padStart(10);
         html += i === 0 ? ' ┐\n' : (i === n - 1 ? ' ┘\n' : ' │\n');
       }
       html += '</pre></div></div>';
@@ -152,16 +152,14 @@
       const n = originalA.length;
       let html = '';
 
-      // Copiar matrices
       const A = originalA.map(row => [...row]);
       const b = [...originalB];
 
       html += displayAugmentedMatrix(A, b, "Matriz Aumentada Inicial [A | b]");
 
-      // Inicializar L, U y vector de permutación
       const L = Array(n).fill(0).map(() => Array(n).fill(0));
       const U = A.map(row => [...row]);
-      const P = Array(n).fill(0).map((_, i) => i); // Vector de permutación
+      const P = Array(n).fill(0).map((_, i) => i);
 
       for (let i = 0; i < n; i++) {
         L[i][i] = 1;
@@ -169,9 +167,7 @@
 
       html += '<div class="result-card"><h3 style="color:var(--primary-color);">DESCOMPOSICIÓN LU CON PIVOTEO PARCIAL</h3><p class="input-help">PA = LU, donde P es la matriz de permutación</p></div>';
 
-      // Eliminación gaussiana con pivoteo parcial
       for (let k = 0; k < n - 1; k++) {
-        // Buscar el pivote máximo
         let maxRow = k;
         let maxVal = Math.abs(U[k][k]);
         
@@ -182,13 +178,11 @@
           }
         }
 
-        // Intercambiar filas si es necesario
         if (maxRow !== k) {
           [U[k], U[maxRow]] = [U[maxRow], U[k]];
           [b[k], b[maxRow]] = [b[maxRow], b[k]];
           [P[k], P[maxRow]] = [P[maxRow], P[k]];
           
-          // Intercambiar elementos ya calculados de L
           for (let j = 0; j < k; j++) {
             [L[k][j], L[maxRow][j]] = [L[maxRow][j], L[k][j]];
           }
@@ -196,7 +190,6 @@
           html += `<div class="alert alert-info"><strong>Intercambio de filas ${k+1} ↔ ${maxRow+1} (pivoteo)</strong></div>`;
         }
 
-        // Eliminación
         for (let i = k + 1; i < n; i++) {
           if (Math.abs(U[k][k]) > 1e-10) {
             const factor = U[i][k] / U[k][k];
@@ -212,7 +205,6 @@
       html += displayMatrix(L, "Matriz L (Triangular Inferior)");
       html += displayMatrix(U, "Matriz U (Triangular Superior)");
 
-      // Resolver Ly = Pb (sustitución hacia adelante)
       html += '<div class="result-card"><h3 style="color:var(--primary-color);">Paso 1: Resolver Ly = Pb (Sustitución hacia adelante)</h3>';
       const y = new Array(n).fill(0);
       for (let i = 0; i < n; i++) {
@@ -225,7 +217,6 @@
       }
       html += '</div>';
 
-      // Resolver Ux = y (sustitución hacia atrás)
       html += '<div class="result-card"><h3 style="color:var(--primary-color);">Paso 2: Resolver Ux = y (Sustitución hacia atrás)</h3>';
       const x = new Array(n).fill(0);
       for (let i = n - 1; i >= 0; i--) {

@@ -6,48 +6,154 @@
   <title>Métodos Numéricos</title>
   <link rel="stylesheet" href="assets/css/styles.css">
   <style>
-    /* Estilos básicos para acordeón */
+    /* Estilos para acordeón */
     .unidad {
-      margin-bottom: 1rem;
-      border: 1px solid #ccc;
-      border-radius: 6px;
+      margin-bottom: 1.5rem;
+      border: 2px solid #ddd;
+      border-radius: 8px;
       overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      transition: all 0.3s ease;
+    }
+
+    .unidad:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
 
     .unidad-header {
-      background: #2c3e50;
+      background: linear-gradient(135deg, #2c3e50, #34495e);
       color: #fff;
-      padding: 12px;
+      padding: 16px 20px;
       cursor: pointer;
-      font-size: 1.2rem;
+      font-size: 1.3rem;
       font-weight: bold;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background 0.3s ease;
+    }
+
+    .unidad-header:hover {
+      background: linear-gradient(135deg, #34495e, #2c3e50);
+    }
+
+    .unidad-header::after {
+      content: '▼';
+      font-size: 1rem;
+      transition: transform 0.3s ease;
+    }
+
+    .unidad.open .unidad-header::after {
+      transform: rotate(180deg);
     }
 
     .unidad-content {
       display: none;
-      padding: 10px;
+      padding: 15px;
       background: #f9f9f9;
+      animation: slideDown 0.3s ease;
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        max-height: 0;
+      }
+      to {
+        opacity: 1;
+        max-height: 1000px;
+      }
     }
 
     .unidad-content .nav-card {
-      display: block;
-      margin: 8px 0;
-      padding: 10px;
+      display: flex;
+      align-items: center;
+      margin: 10px 0;
+      padding: 15px;
       background: #fff;
-      border: 1px solid #ddd;
-      border-radius: 4px;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
       text-decoration: none;
       color: #333;
-      transition: background 0.2s;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
 
     .unidad-content .nav-card:hover {
-      background: #eef;
+      background: linear-gradient(135deg, #e8f5fe, #f0f8ff);
+      border-color: #3498db;
+      transform: translateX(5px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    .unidad-content .card-icon {
+      font-size: 2rem;
+      margin-right: 15px;
+      flex-shrink: 0;
+    }
+
+    .unidad-content .card-text {
+      flex: 1;
+    }
+
+    .unidad-content .card-text h3 {
+      margin: 0 0 5px 0;
+      color: #2c3e50;
+      font-size: 1.1rem;
+    }
+
+    .unidad-content .card-text p {
+      margin: 0;
+      color: #7f8c8d;
+      font-size: 0.9rem;
     }
 
     /* Estado abierto */
     .unidad.open .unidad-content {
       display: block;
+    }
+
+    /* Botón para expandir/contraer todo */
+    .controls {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .btn-control {
+      background: linear-gradient(135deg, #3498db, #2980b9);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      margin: 5px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+
+    .btn-control:hover {
+      background: linear-gradient(135deg, #2980b9, #3498db);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .unidad-header {
+        font-size: 1.1rem;
+        padding: 12px 15px;
+      }
+
+      .unidad-content .nav-card {
+        flex-direction: column;
+        text-align: center;
+      }
+
+      .unidad-content .card-icon {
+        margin-right: 0;
+        margin-bottom: 10px;
+      }
     }
   </style>
 </head>
@@ -58,30 +164,146 @@
       <p class="subtitle">Calculadoras interactivas para análisis numérico</p>
     </header>
 
+    <div class="controls">
+      <button class="btn-control" onclick="expandAll()">📂 Expandir Todo</button>
+      <button class="btn-control" onclick="collapseAll()">📁 Contraer Todo</button>
+    </div>
+
     <nav class="nav-grid">
 
-      <!-- 🔹 UNIDAD 1 -->
+      <!-- 🔹 UNIDAD 1: Métodos de Raíces y Errores -->
       <div class="unidad">
-        <div class="unidad-header">Unidad 1: Métodos de Raíces y Errores</div>
+        <div class="unidad-header">📐 Unidad 1: Métodos de Raíces y Análisis de Errores</div>
         <div class="unidad-content">
-          <a href="pages/semana1.html" class="nav-card">📊 Análisis de Errores</a>
-          <a href="pages/biseccion.html" class="nav-card">⚡ Método de Bisección</a>
-          <a href="pages/falsa-posicion.html" class="nav-card">📐 Método de Falsa Posición</a>
-          <a href="pages/punto-fijo.html" class="nav-card">🎯 Método de Punto Fijo</a>
-          <a href="pages/newton-raphson.html" class="nav-card">🔬 Newton-Raphson</a>
-          <a href="pages/secante.html" class="nav-card">📏 Método de la Secante</a>
+          
+          <a href="pages/semana1.html" class="nav-card">
+            <div class="card-icon">📊</div>
+            <div class="card-text">
+              <h3>Análisis de Errores</h3>
+              <p>Cálculo de errores y sistemas de punto flotante</p>
+            </div>
+          </a>
+
+          <a href="pages/biseccion.html" class="nav-card">
+            <div class="card-icon">⚡</div>
+            <div class="card-text">
+              <h3>Método de Bisección</h3>
+              <p>Encuentra raíces mediante bisección de intervalos</p>
+            </div>
+          </a>
+
+          <a href="pages/falsa-posicion.html" class="nav-card">
+            <div class="card-icon">📐</div>
+            <div class="card-text">
+              <h3>Método de Falsa Posición</h3>
+              <p>Localización de raíces por interpolación lineal</p>
+            </div>
+          </a>
+
+          <a href="pages/punto-fijo.html" class="nav-card">
+            <div class="card-icon">🎯</div>
+            <div class="card-text">
+              <h3>Método de Punto Fijo</h3>
+              <p>Encuentra puntos fijos de funciones iterativas</p>
+            </div>
+          </a>
+
+          <a href="pages/newton-raphson.html" class="nav-card">
+            <div class="card-icon">🔬</div>
+            <div class="card-text">
+              <h3>Newton-Raphson</h3>
+              <p>Método de convergencia rápida usando derivadas</p>
+            </div>
+          </a>
+
+          <a href="pages/secante.html" class="nav-card">
+            <div class="card-icon">📏</div>
+            <div class="card-text">
+              <h3>Método de la Secante</h3>
+              <p>Aproximación de Newton sin derivadas</p>
+            </div>
+          </a>
+
         </div>
       </div>
 
-      <!-- 🔹 UNIDAD 2 -->
+      <!-- 🔹 UNIDAD 2: Sistemas de Ecuaciones y Optimización -->
       <div class="unidad">
-        <div class="unidad-header">Unidad 2: Sistemas y Optimización</div>
+        <div class="unidad-header">🧮 Unidad 2: Sistemas de Ecuaciones y Optimización</div>
         <div class="unidad-content">
-          <a href="pages/simplex.html" class="nav-card">📈 Método Simplex</a>
-          <a href="pages/gauss.html" class="nav-card">➗ Método de Gauss</a>
-          <a href="pages/gauss-jordan.html" class="nav-card">🧮 Gauss-Jordan</a>
-          <a href="pages/lu.html" class="nav-card">🏗️ Factorización LU</a>
-          <a href="pages/lagrange.html" class="nav-card">📈 Interpolación de Lagrange</a>
+
+          <a href="pages/simplex.html" class="nav-card">
+            <div class="card-icon">📈</div>
+            <div class="card-text">
+              <h3>Método Simplex</h3>
+              <p>Optimización de problemas de programación lineal</p>
+            </div>
+          </a>
+
+          <a href="pages/gauss.html" class="nav-card">
+            <div class="card-icon">➗</div>
+            <div class="card-text">
+              <h3>Método de Gauss</h3>
+              <p>Resolución de sistemas lineales por eliminación</p>
+            </div>
+          </a>
+
+          <a href="pages/gauss-jordan.html" class="nav-card">
+            <div class="card-icon">🧮</div>
+            <div class="card-text">
+              <h3>Gauss-Jordan</h3>
+              <p>Matriz escalonada reducida (RREF)</p>
+            </div>
+          </a>
+
+          <a href="pages/lu.html" class="nav-card">
+            <div class="card-icon">🏗️</div>
+            <div class="card-text">
+              <h3>Factorización LU</h3>
+              <p>Descomposición de matrices en L · U</p>
+            </div>
+          </a>
+
+          <a href="pages/jacobi.html" class="nav-card">
+            <div class="card-icon">🔄</div>
+            <div class="card-text">
+              <h3>Método de Jacobi</h3>
+              <p>Resolución iterativa con actualización simultánea</p>
+            </div>
+          </a>
+
+          <a href="pages/gauss-seidel.html" class="nav-card">
+            <div class="card-icon">⚡</div>
+            <div class="card-text">
+              <h3>Gauss-Seidel</h3>
+              <p>Resolución iterativa con actualización sucesiva</p>
+            </div>
+          </a>
+
+        </div>
+      </div>
+
+      <!-- 🔹 UNIDAD 3: Interpolación -->
+      <div class="unidad">
+        <div class="unidad-header">📊 Unidad 3: Métodos de Interpolación</div>
+        <div class="unidad-content">
+
+          <a href="pages/lagrange.html" class="nav-card">
+            <div class="card-icon">📈</div>
+            <div class="card-text">
+              <h3>Interpolación de Lagrange</h3>
+              <p>Polinomios interpoladores mediante método de Lagrange</p>
+            </div>
+          </a>
+
+          <a href="pages/newton-diferencias.html" class="nav-card">
+            <div class="card-icon">🔢</div>
+            <div class="card-text">
+              <h3>Diferencias Divididas de Newton</h3>
+              <p>Interpolación polinómica progresiva con diferencias divididas</p>
+            </div>
+          </a>
+
         </div>
       </div>
 
@@ -92,7 +314,6 @@
     </footer>
   </div>
 
-<<<<<<< HEAD
   <script>
     // Script para abrir/cerrar acordeón
     document.querySelectorAll('.unidad-header').forEach(header => {
@@ -101,67 +322,25 @@
         unidad.classList.toggle('open');
       });
     });
+
+    // Función para expandir todas las unidades
+    function expandAll() {
+      document.querySelectorAll('.unidad').forEach(unidad => {
+        unidad.classList.add('open');
+      });
+    }
+
+    // Función para contraer todas las unidades
+    function collapseAll() {
+      document.querySelectorAll('.unidad').forEach(unidad => {
+        unidad.classList.remove('open');
+      });
+    }
+
+    // Abrir la primera unidad por defecto al cargar
+    window.addEventListener('DOMContentLoaded', () => {
+      document.querySelector('.unidad').classList.add('open');
+    });
   </script>
-=======
-            <a href="pages/secante.html" class="nav-card">
-                <div class="card-icon">📏</div>
-                <h3>Método de la Secante</h3>
-                <p>Aproximación de Newton sin derivadas</p>
-            </a>
-
-            <a href="pages/simplex.html" class="nav-card">
-                <div class="card-icon">📈</div>
-                <h3>Método Simplex</h3>
-                <p>Optimización de problemas de programación lineal</p>
-            </a>
-
-            <!-- 🔹 NUEVOS MÉTODOS AGREGADOS 🔹 -->
-
-            <a href="pages/gauss.html" class="nav-card">
-                <div class="card-icon">➗</div>
-                <h3>Método de Gauss</h3>
-                <p>Resolución de sistemas lineales por eliminación</p>
-            </a>
-
-            <a href="pages/gauss-jordan.html" class="nav-card">
-                <div class="card-icon">🧮</div>
-                <h3>Gauss-Jordan</h3>
-                <p>Matriz escalonada reducida (RREF)</p>
-            </a>
-
-            <a href="pages/lu.html" class="nav-card">
-                <div class="card-icon">🏗️</div>
-                <h3>Factorización LU</h3>
-                <p>Descomposición de matrices en L · U</p>
-            </a>
-            <a href="pages/lagrange.html" class="nav-card">
-    <div class="card-icon">📈</div>
-    <h3>Interpolación de Lagrange</h3>
-    <p>Polinomios interpoladores mediante método de Lagrange</p>
-</a>
-            <a href="pages/newton-diferencias.html" class="nav-card">
-    <div class="card-icon">🔢</div>
-    <h3>Diferencias Divididas de Newton</h3>
-    <p>Interpolación polinómica progresiva con diferencias divididas</p>
-</a>
-<a href="pages/jacobi.html" class="nav-card">
-                <div class="card-icon">🔄</div>
-                <h3>Método de Jacobi</h3>
-                <p>Resolución iterativa con actualización simultánea</p>
-            </a>
-
-            <a href="pages/gauss-seidel.html" class="nav-card">
-                <div class="card-icon">⚡</div>
-                <h3>Gauss-Seidel</h3>
-                <p>Resolución iterativa con actualización sucesiva</p>
-            </a>
-
-        </nav>
-
-        <footer class="footer">
-            <p>&copy; 2024 Métodos Numéricos - Herramientas de Análisis Matemático</p>
-        </footer>
-    </div>
->>>>>>> 9968739f5ac1cc19ac4a5ec638a2c42e8b2941ff
 </body>
 </html>
